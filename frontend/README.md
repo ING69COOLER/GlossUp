@@ -1,32 +1,61 @@
-# React + TypeScript + Vite
+# GlossUP · Frontend (PWA)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Cliente web de **GlossUP** implementado como **Progressive Web App** (ADR-03), que consume la
+API REST del backend.
 
-Currently, two official plugins are available:
+## Stack
+- **React 19 + TypeScript** sobre **Vite**
+- **PWA** con `vite-plugin-pwa` (service worker + manifest, instalable en móvil)
+- **React Router** para el enrutado
+- **Axios** como cliente HTTP (con inyección automática del token JWT)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Estructura (por features, espejo de los módulos del backend)
+```
+frontend/
+├── index.html
+├── vite.config.ts            # PWA + proxy /api -> localhost:8080
+└── src/
+    ├── main.tsx
+    ├── app/                  # shell: App.tsx (router + navbar), HomePage
+    ├── shared/
+    │   ├── api/              # apiClient (axios + JWT), health
+    │   ├── components/       # componentes reutilizables
+    │   ├── hooks/
+    │   └── types/            # tipos de dominio (espejo de las entidades del back)
+    ├── styles/
+    └── features/
+        ├── usuarios/         # login / registro
+        ├── perfil/           # perfil dermatológico (HU1, HU2)
+        ├── catalogo/         # productos e INCI (HU3, HU4, HU12, HU13, HU5)
+        ├── compatibilidad/   # motor de alertas (HU6, HU7, HU8)
+        └── recomendacion/    # carrito, checkout, IA (HU9, HU10, HU11, HU14)
+```
+Cada feature tiene `pages/`, `components/` y `api/`.
 
-## React Compiler
+## Requisitos
+- Node 20+ (tienes Node 26)
+- El backend corriendo en `http://localhost:8080` (para que funcione el proxy `/api`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Puesta en marcha
+```bash
+cd frontend
+npm install          # instala dependencias
+npm run dev          # servidor de desarrollo en http://localhost:5173
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Comandos
+```bash
+npm run dev        # desarrollo (HMR)
+npm run build      # compila a dist/ (TypeScript + Vite)
+npm run preview    # sirve la build de producción localmente
+npm run lint       # oxlint
+```
+
+## Variables de entorno
+Copia `.env.example` a `.env` y ajusta:
+| Variable | Por defecto | Descripción |
+|----------|-------------|-------------|
+| `VITE_API_URL` | `/api` | Base del backend. En dev usa el proxy de Vite; en prod, la URL pública de la API. |
+
+## Despliegue
+`Dockerfile` incluido: construye la app y la sirve como estáticos con **nginx** (SPA fallback).
