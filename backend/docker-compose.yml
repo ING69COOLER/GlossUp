@@ -1,0 +1,33 @@
+# docker-compose para desarrollo: aplicacion + PostgreSQL (ADR-01, ADR-05, ADR-08)
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: glossup-db
+    environment:
+      POSTGRES_DB: glossup
+      POSTGRES_USER: glossup
+      POSTGRES_PASSWORD: glossup
+    ports:
+      - "5432:5432"
+    volumes:
+      - glossup_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glossup -d glossup"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: glossup-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      GLOSSUP_JWT_SECRET: cambia-este-secreto-de-desarrollo-min-32-bytes!!
+    ports:
+      - "8080:8080"
+
+volumes:
+  glossup_pgdata:

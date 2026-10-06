@@ -1,0 +1,7 @@
+# Perfil activo dentro de docker-compose (SPRING_PROFILES_ACTIVE=docker).
+# El host de la base de datos es el nombre del servicio "db" de la red de compose.
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/glossup
+    username: glossup
+    password: glossup
