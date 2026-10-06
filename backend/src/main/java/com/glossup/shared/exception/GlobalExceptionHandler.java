@@ -1,5 +1,6 @@
 package com.glossup.shared.exception;
 
+import com.glossup.shared.domain.ReglaNegocioException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest req) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), req, List.of());
+    }
+
+    @ExceptionHandler(ReglaNegocioException.class)
+    public ResponseEntity<ApiError> handleReglaNegocio(ReglaNegocioException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req, List.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
