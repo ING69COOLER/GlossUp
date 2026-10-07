@@ -1,0 +1,465 @@
+@startuml GlossUP-Diagrama-de-Clases
+' =====================================================================================
+'  GlossUP - Diagrama de Clases (dominio + arquitectura hexagonal)
+'  Ecommerce de cosmetica con motor de compatibilidad dermatologica
+'  Monolito modular, arquitectura hexagonal (ADR-01)
+' =====================================================================================
+' Motor de layout interno (Smetana): NO requiere tener Graphviz/dot instalado.
+' Si prefieres usar Graphviz, instala graphviz y borra la linea de abajo.
+!pragma layout smetana
+
+title GlossUP - Diagrama de Clases
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #B05A7A
+    ArrowColor #8A8A8A
+}
+skinparam stereotypeCBackgroundColor #FDEFF5
+
+legend right
+  <<VO>>  Objeto de valor (inmutable)
+  <<enumeration>>  Enumeracion
+  Puertos = interfaces (hexagonal)
+endlegend
+
+' =====================================================================================
+' SHARED (nucleo transversal)
+' =====================================================================================
+package shared.domain <<Frame>> {
+
+    class ReglaNegocioException extends RuntimeException {
+        + ReglaNegocioException(mensaje: String)
+    }
+
+    class Dinero <<VO>> {
+        - monto : BigDecimal
+        + {static} de(valor: double) : Dinero
+        + {static} cero() : Dinero
+        + mas(otro: Dinero) : Dinero
+        + por(cantidad: int) : Dinero
+    }
+}
+
+' =====================================================================================
+' MODULO 1 : USUARIOS  (identidad y roles)
+' =====================================================================================
+package usuarios {
+
+    package "usuarios.domain.model" <<Frame>> {
+        enum Rol <<enumeration>> {
+            CLIENTE
+            VENDEDOR
+            ADMIN
+        }
+
+        class Email <<VO>> {
+            - valor : String
+        }
+
+        class Usuario {
+            - id : Long
+            - email : Email
+            - nombre : String
+            - passwordHash : String
+            - activo : boolean
+            - roles : Set<Rol>
+            - creadoEn : OffsetDateTime
+            + {static} registrar(email: Email, nombre: String, hash: String) : Usuario
+            + asignarRol(rol: Rol) : void
+            + quitarRol(rol: Rol) : void
+            + tieneRol(rol: Rol) : boolean
+            + activar() : void
+            + desactivar() : void
+            + cambiarNombre(nombre: String) : void
+            + cambiarPasswordHash(hash: String) : void
+        }
+    }
+
+    package "usuarios.domain.port" <<Frame>> {
+        interface RegistrarUsuarioUseCase {
+            + registrar(email: String, nombre: String, password: String) : Usuario
+        }
+        interface AutenticarUsuarioUseCase {
+            + autenticar(email: String, password: String) : String
+        }
+        interface UsuarioRepositoryPort {
+            + guardar(usuario: Usuario) : Usuario
+            + buscarPorEmail(email: Email) : Optional<Usuario>
+            + existePorEmail(email: Email) : boolean
+        }
+    }
+
+    package "usuarios.application" <<Frame>> {
+        class RegistrarUsuarioService
+        class AutenticarUsuarioService
+    }
+
+    package "usuarios.infrastructure" <<Frame>> {
+        class UsuarioController <<RestController>>
+        class UsuarioPersistenceAdapter <<Adapter>>
+    }
+}
+
+Usuario "1" o-- "1..*" Rol
+Usuario ..> Email
+RegistrarUsuarioService ..|> RegistrarUsuarioUseCase
+AutenticarUsuarioService ..|> AutenticarUsuarioUseCase
+RegistrarUsuarioService ..> UsuarioRepositoryPort
+AutenticarUsuarioService ..> UsuarioRepositoryPort
+UsuarioController ..> RegistrarUsuarioUseCase
+UsuarioController ..> AutenticarUsuarioUseCase
+UsuarioPersistenceAdapter ..|> UsuarioRepositoryPort
+
+' =====================================================================================
+' MODULO 2 : PERFIL  (perfil dermatologico)
+' =====================================================================================
+package perfil {
+
+    package "perfil.domain.model" <<Frame>> {
+        enum TipoPiel <<enumeration>> {
+            NORMAL
+            SECA
+            GRASA
+            MIXTA
+            SENSIBLE
+        }
+
+        class Ph <<VO>> {
+            - valor : double
+            + esFisiologico() : boolean
+        }
+
+        class PerfilDermatologico {
+            - id : Long
+            - usuarioId : Long
+            - ph : Ph
+            - tipoPiel : TipoPiel
+            - tipoCabello : String
+            - afecciones : Set<String>
+            - alergias : Set<String>
+            - actualizadoEn : OffsetDateTime
+            + {static} crear(usuarioId: Long, ph: Ph, tipoPiel: TipoPiel, cabello: String) : PerfilDermatologico
+            + agregarAlergia(alergia: String) : void
+            + quitarAlergia(alergia: String) : void
+            + agregarAfeccion(afeccion: String) : void
+            + quitarAfeccion(afeccion: String) : void
+            + actualizarBiotipo(ph: Ph, tipoPiel: TipoPiel, cabello: String) : void
+            + esAlergicoA(inci: String) : boolean
+            + tieneAfeccion(afeccion: String) : boolean
+        }
+    }
+
+    package "perfil.domain.port" <<Frame>> {
+        interface GestionarPerfilUseCase {
+            + crearPerfil(...) : PerfilDermatologico
+            + agregarAlergia(usuarioId: Long, alergia: String) : void
+            + quitarAlergia(usuarioId: Long, alergia: String) : void
+        }
+        interface PerfilRepositoryPort {
+            + guardar(perfil: PerfilDermatologico) : PerfilDermatologico
+            + buscarPorUsuario(usuarioId: Long) : Optional<PerfilDermatologico>
+        }
+    }
+
+    package "perfil.application" <<Frame>> {
+        class GestionarPerfilService
+    }
+
+    package "perfil.infrastructure" <<Frame>> {
+        class PerfilController <<RestController>>
+        class PerfilPersistenceAdapter <<Adapter>>
+    }
+}
+
+PerfilDermatologico ..> Ph
+PerfilDermatologico ..> TipoPiel
+PerfilDermatologico ..> Usuario : usuarioId
+GestionarPerfilService ..|> GestionarPerfilUseCase
+GestionarPerfilService ..> PerfilRepositoryPort
+PerfilController ..> GestionarPerfilUseCase
+PerfilPersistenceAdapter ..|> PerfilRepositoryPort
+
+' =====================================================================================
+' MODULO 3 : CATALOGO  (productos + ontologia INCI)
+' =====================================================================================
+package catalogo {
+
+    package "catalogo.domain.model" <<Frame>> {
+        class Inci <<VO>> {
+            - nombre : String
+        }
+
+        class Ingrediente {
+            - id : Long
+            - inci : Inci
+            - descripcion : String
+            + {static} nuevo(inci: Inci, desc: String) : Ingrediente
+        }
+
+        class ComposicionProducto <<VO>> {
+            - ingrediente : Ingrediente
+            - concentracion : Double
+        }
+
+        class Producto {
+            - id : Long
+            - vendedorId : Long
+            - nombre : String
+            - marca : String
+            - categoria : String
+            - precio : Dinero
+            - stock : int
+            - ph : Double
+            - registroInvima : String
+            - activo : boolean
+            - composicion : List<ComposicionProducto>
+            - creadoEn : OffsetDateTime
+            + {static} registrar(...) : Producto
+            + agregarIngrediente(item: ComposicionProducto) : void
+            + contieneIngrediente(inci: Inci) : boolean
+            + publicar() : void
+            + despublicar() : void
+            + reducirStock(cantidad: int) : void
+            + reponerStock(cantidad: int) : void
+            + hayStock(cantidad: int) : boolean
+            + actualizarDatos(...) : void
+        }
+    }
+
+    package "catalogo.domain.port" <<Frame>> {
+        interface GestionarCatalogoUseCase
+        interface BuscarProductosUseCase
+        interface ProductoRepositoryPort
+        interface IngredienteRepositoryPort
+        interface OcrPort {
+            + extraerIngredientes(imagen: byte[]) : List<String>
+        }
+    }
+
+    package "catalogo.application" <<Frame>> {
+        class GestionarCatalogoService
+        class BuscarProductosService
+    }
+
+    package "catalogo.infrastructure" <<Frame>> {
+        class CatalogoController <<RestController>>
+        class ProductoPersistenceAdapter <<Adapter>>
+        class OcrAdapter <<Adapter>>
+    }
+}
+
+Producto "1" *-- "0..*" ComposicionProducto
+ComposicionProducto --> Ingrediente
+Ingrediente ..> Inci
+Producto ..> Dinero
+GestionarCatalogoService ..|> GestionarCatalogoUseCase
+BuscarProductosService ..|> BuscarProductosUseCase
+GestionarCatalogoService ..> ProductoRepositoryPort
+GestionarCatalogoService ..> IngredienteRepositoryPort
+CatalogoController ..> GestionarCatalogoUseCase
+CatalogoController ..> BuscarProductosUseCase
+ProductoPersistenceAdapter ..|> ProductoRepositoryPort
+OcrAdapter ..|> OcrPort
+
+' =====================================================================================
+' MODULO 4 : COMPATIBILIDAD  (motor de reglas)
+' =====================================================================================
+package compatibilidad {
+
+    package "compatibilidad.domain.model" <<Frame>> {
+        enum Severidad <<enumeration>> {
+            BAJA
+            MEDIA
+            ALTA
+        }
+
+        class ReglaIncompatibilidad {
+            - id : Long
+            - ingredienteA : String
+            - ingredienteB : String
+            - severidad : Severidad
+            - motivo : String
+            + aplicaA(inci1: String, inci2: String) : boolean
+        }
+
+        class ReglaPerfil {
+            - id : Long
+            - ingrediente : String
+            - condicion : String
+            - severidad : Severidad
+            - motivo : String
+            + aplicaA(inci: String, condicion: String) : boolean
+        }
+
+        class Alerta <<VO>> {
+            - severidad : Severidad
+            - mensaje : String
+            - causa : String
+            + esCritica() : boolean
+        }
+
+        class ResultadoCompatibilidad {
+            - alertas : List<Alerta>
+            + {static} vacio() : ResultadoCompatibilidad
+            + agregar(alerta: Alerta) : void
+            + esCompatible() : boolean
+            + tieneAlertas() : boolean
+        }
+    }
+
+    package "compatibilidad.domain.port" <<Frame>> {
+        interface EvaluarCompatibilidadUseCase {
+            + evaluarProductoPerfil(usuarioId: Long, productoId: Long) : ResultadoCompatibilidad
+            + evaluarCarrito(usuarioId: Long, productoIds: List<Long>) : ResultadoCompatibilidad
+        }
+        interface ReglaRepositoryPort {
+            + incompatibilidades() : List<ReglaIncompatibilidad>
+            + reglasPerfil() : List<ReglaPerfil>
+        }
+    }
+
+    package "compatibilidad.application" <<Frame>> {
+        class MotorCompatibilidadService
+    }
+
+    package "compatibilidad.infrastructure" <<Frame>> {
+        class CompatibilidadController <<RestController>>
+        class ReglaPersistenceAdapter <<Adapter>>
+    }
+}
+
+ReglaIncompatibilidad ..> Severidad
+ReglaPerfil ..> Severidad
+Alerta ..> Severidad
+ResultadoCompatibilidad "1" o-- "0..*" Alerta
+MotorCompatibilidadService ..|> EvaluarCompatibilidadUseCase
+MotorCompatibilidadService ..> ReglaRepositoryPort
+MotorCompatibilidadService ..> ResultadoCompatibilidad
+CompatibilidadController ..> EvaluarCompatibilidadUseCase
+ReglaPersistenceAdapter ..|> ReglaRepositoryPort
+
+' =====================================================================================
+' MODULO 5 : RECOMENDACION  (carrito, checkout, IA)
+' =====================================================================================
+package recomendacion {
+
+    package "recomendacion.domain.model" <<Frame>> {
+        enum EstadoPedido <<enumeration>> {
+            CREADO
+            PAGADO
+            ENVIADO
+            CANCELADO
+            + puedeTransicionarA(destino: EstadoPedido) : boolean
+        }
+
+        class ItemCarrito {
+            - productoId : Long
+            - precioUnitario : Dinero
+            - cantidad : int
+            + incrementar(unidades: int) : void
+            + cambiarCantidad(cantidad: int) : void
+            + subtotal() : Dinero
+        }
+
+        class Carrito {
+            - usuarioId : Long
+            - items : List<ItemCarrito>
+            + {static} vacio(usuarioId: Long) : Carrito
+            + agregar(productoId: Long, precio: Dinero, cantidad: int) : void
+            + quitar(productoId: Long) : void
+            + cambiarCantidad(productoId: Long, cantidad: int) : void
+            + vaciar() : void
+            + estaVacio() : boolean
+            + total() : Dinero
+        }
+
+        class PedidoItem <<VO>> {
+            - productoId : Long
+            - cantidad : int
+            - precioUnitario : Dinero
+            + subtotal() : Dinero
+        }
+
+        class Pedido {
+            - id : Long
+            - usuarioId : Long
+            - estado : EstadoPedido
+            - items : List<PedidoItem>
+            - total : Dinero
+            - creadoEn : OffsetDateTime
+            + {static} crear(usuarioId: Long, items: List<PedidoItem>) : Pedido
+            + marcarPagado() : void
+            + marcarEnviado() : void
+            + cancelar() : void
+        }
+
+        class Recomendacion <<VO>> {
+            - productoId : Long
+            - razon : String
+            - score : double
+        }
+    }
+
+    package "recomendacion.domain.port" <<Frame>> {
+        interface GestionarCarritoUseCase
+        interface RealizarCheckoutUseCase {
+            + checkout(usuarioId: Long) : Pedido
+        }
+        interface RecomendarUseCase {
+            + recomendar(usuarioId: Long) : List<Recomendacion>
+        }
+        interface PedidoRepositoryPort
+        interface PasarelaPagosPort {
+            + cobrar(pedido: Pedido, token: String) : boolean
+        }
+        interface EnvioPort {
+            + notificarEnvio(pedido: Pedido) : void
+        }
+        interface IARecomendacionPort {
+            + sugerir(perfilId: Long) : List<Recomendacion>
+        }
+    }
+
+    package "recomendacion.application" <<Frame>> {
+        class CarritoService
+        class CheckoutService
+        class RecomendacionService
+    }
+
+    package "recomendacion.infrastructure" <<Frame>> {
+        class CheckoutController <<RestController>>
+        class RecomendacionController <<RestController>>
+        class PedidoPersistenceAdapter <<Adapter>>
+        class PasarelaPagosClient <<Adapter>>
+        class EnvioApiClient <<Adapter>>
+        class IARecomendacionClient <<Adapter>>
+    }
+}
+
+Carrito "1" *-- "0..*" ItemCarrito
+ItemCarrito ..> Dinero
+Pedido "1" *-- "1..*" PedidoItem
+Pedido ..> EstadoPedido
+Pedido ..> Dinero
+PedidoItem ..> Dinero
+CarritoService ..|> GestionarCarritoUseCase
+CheckoutService ..|> RealizarCheckoutUseCase
+RecomendacionService ..|> RecomendarUseCase
+CheckoutService ..> PedidoRepositoryPort
+CheckoutService ..> PasarelaPagosPort
+CheckoutService ..> EnvioPort
+RecomendacionService ..> IARecomendacionPort
+CheckoutController ..> RealizarCheckoutUseCase
+RecomendacionController ..> RecomendarUseCase
+PedidoPersistenceAdapter ..|> PedidoRepositoryPort
+PasarelaPagosClient ..|> PasarelaPagosPort
+EnvioApiClient ..|> EnvioPort
+IARecomendacionClient ..|> IARecomendacionPort
+
+' --- Relaciones entre modulos (el checkout usa el motor de compatibilidad) ---
+CheckoutService ..> EvaluarCompatibilidadUseCase : valida antes de pagar
+
+@enduml

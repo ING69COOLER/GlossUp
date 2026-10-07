@@ -1,0 +1,218 @@
+@startuml GlossUP-Modelo-de-Dominio
+' =====================================================================================
+'  GlossUP - Diagrama de Clases: SOLO objetos de modelo (dominio)
+'  Entidades, objetos de valor (VO) y enumeraciones de los 5 modulos
+' =====================================================================================
+!pragma layout smetana
+
+title GlossUP - Modelo de Dominio
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #B05A7A
+    ArrowColor #8A8A8A
+}
+skinparam stereotypeCBackgroundColor #FDEFF5
+
+legend right
+  <<VO>>  Objeto de valor (inmutable)
+  <<enumeration>>  Enumeracion
+endlegend
+
+' ------------------------------------------------------------------ shared
+package shared {
+    class Dinero <<VO>> {
+        - monto : BigDecimal
+    }
+}
+
+' ------------------------------------------------------------------ usuarios
+package usuarios {
+    enum Rol <<enumeration>> {
+        CLIENTE
+        VENDEDOR
+        ADMIN
+    }
+
+    class Email <<VO>> {
+        - valor : String
+    }
+
+    class Usuario {
+        - id : Long
+        - email : Email
+        - nombre : String
+        - passwordHash : String
+        - activo : boolean
+        - roles : Set<Rol>
+        - creadoEn : OffsetDateTime
+    }
+}
+
+' ------------------------------------------------------------------ perfil
+package perfil {
+    enum TipoPiel <<enumeration>> {
+        NORMAL
+        SECA
+        GRASA
+        MIXTA
+        SENSIBLE
+    }
+
+    class Ph <<VO>> {
+        - valor : double
+    }
+
+    class PerfilDermatologico {
+        - id : Long
+        - usuarioId : Long
+        - ph : Ph
+        - tipoPiel : TipoPiel
+        - tipoCabello : String
+        - afecciones : Set<String>
+        - alergias : Set<String>
+        - actualizadoEn : OffsetDateTime
+    }
+}
+
+' ------------------------------------------------------------------ catalogo
+package catalogo {
+    class Inci <<VO>> {
+        - nombre : String
+    }
+
+    class Ingrediente {
+        - id : Long
+        - inci : Inci
+        - descripcion : String
+    }
+
+    class ComposicionProducto <<VO>> {
+        - ingrediente : Ingrediente
+        - concentracion : Double
+    }
+
+    class Producto {
+        - id : Long
+        - vendedorId : Long
+        - nombre : String
+        - marca : String
+        - categoria : String
+        - precio : Dinero
+        - stock : int
+        - ph : Double
+        - registroInvima : String
+        - activo : boolean
+        - composicion : List<ComposicionProducto>
+        - creadoEn : OffsetDateTime
+    }
+}
+
+' ------------------------------------------------------------------ compatibilidad
+package compatibilidad {
+    enum Severidad <<enumeration>> {
+        BAJA
+        MEDIA
+        ALTA
+    }
+
+    class ReglaIncompatibilidad {
+        - id : Long
+        - ingredienteA : String
+        - ingredienteB : String
+        - severidad : Severidad
+        - motivo : String
+    }
+
+    class ReglaPerfil {
+        - id : Long
+        - ingrediente : String
+        - condicion : String
+        - severidad : Severidad
+        - motivo : String
+    }
+
+    class Alerta <<VO>> {
+        - severidad : Severidad
+        - mensaje : String
+        - causa : String
+    }
+
+    class ResultadoCompatibilidad {
+        - alertas : List<Alerta>
+    }
+}
+
+' ------------------------------------------------------------------ recomendacion
+package recomendacion {
+    enum EstadoPedido <<enumeration>> {
+        CREADO
+        PAGADO
+        ENVIADO
+        CANCELADO
+    }
+
+    class ItemCarrito {
+        - productoId : Long
+        - precioUnitario : Dinero
+        - cantidad : int
+    }
+
+    class Carrito {
+        - usuarioId : Long
+        - items : List<ItemCarrito>
+    }
+
+    class PedidoItem <<VO>> {
+        - productoId : Long
+        - cantidad : int
+        - precioUnitario : Dinero
+    }
+
+    class Pedido {
+        - id : Long
+        - usuarioId : Long
+        - estado : EstadoPedido
+        - items : List<PedidoItem>
+        - total : Dinero
+        - creadoEn : OffsetDateTime
+    }
+
+    class Recomendacion <<VO>> {
+        - productoId : Long
+        - razon : String
+        - score : double
+    }
+}
+
+' =====================================================================================
+' Relaciones
+' =====================================================================================
+Usuario "1" o-- "1..*" Rol
+Usuario *-- "1" Email
+
+PerfilDermatologico *-- "0..1" Ph
+PerfilDermatologico --> TipoPiel
+PerfilDermatologico "1" --> "1" Usuario : usuarioId
+
+Producto "1" *-- "0..*" ComposicionProducto
+ComposicionProducto --> "1" Ingrediente
+Ingrediente *-- "1" Inci
+Producto --> "1" Dinero : precio
+
+ReglaIncompatibilidad --> Severidad
+ReglaPerfil --> Severidad
+Alerta --> Severidad
+ResultadoCompatibilidad "1" o-- "0..*" Alerta
+
+Carrito "1" *-- "0..*" ItemCarrito
+ItemCarrito --> "1" Dinero
+Pedido "1" *-- "1..*" PedidoItem
+Pedido --> EstadoPedido
+Pedido --> "1" Dinero : total
+PedidoItem --> "1" Dinero
+
+@enduml
