@@ -6,6 +6,7 @@ import com.glossup.shared.domain.TransicionInvalidaException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -54,6 +55,13 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .toList();
         return build(HttpStatus.BAD_REQUEST, "VALIDACION", "Error de validación", req, detalles);
+    }
+
+    /** Cuerpo JSON mal formado o valor no convertible (p. ej. un tipo de piel inexistente). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleBodyIlegible(HttpMessageNotReadableException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "CUERPO_INVALIDO",
+                "El cuerpo de la petición es inválido o está mal formado", req, List.of());
     }
 
     @ExceptionHandler(Exception.class)

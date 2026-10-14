@@ -31,6 +31,7 @@ public enum CodigoError {
 
     // ---- Operaciones no permitidas por el estado del agregado ----
     USUARIO_SIN_ROLES("El usuario debe conservar al menos un rol"),
+    PERFIL_YA_EXISTE("El usuario ya tiene un perfil dermatológico"),
     PRODUCTO_SIN_INCI("No se puede publicar un producto sin ficha de ingredientes INCI (RNF-04)"),
     INGREDIENTE_DUPLICADO("El ingrediente ya está en la ficha del producto"),
     ITEM_NO_EN_CARRITO("El producto no está en el carrito"),
