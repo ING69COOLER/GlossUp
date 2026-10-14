@@ -1,7 +1,8 @@
 package com.glossup.recomendacion.domain.model;
 
+import com.glossup.shared.domain.CodigoError;
 import com.glossup.shared.domain.Dinero;
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.OperacionNoPermitidaException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +44,8 @@ public class Carrito {
 
     public void cambiarCantidad(Long productoId, int cantidad) {
         ItemCarrito item = buscar(productoId)
-                .orElseThrow(() -> new ReglaNegocioException("El producto no está en el carrito"));
+                .orElseThrow(() -> new OperacionNoPermitidaException(CodigoError.ITEM_NO_EN_CARRITO,
+                        "El producto no está en el carrito"));
         item.cambiarCantidad(cantidad);
     }
 
@@ -53,6 +55,17 @@ public class Carrito {
 
     public boolean estaVacio() {
         return items.isEmpty();
+    }
+
+    /**
+     * Valida que el carrito pueda convertirse en un pedido (proceso de checkout).
+     * Regla: no se puede confirmar la compra de un carrito vacío.
+     */
+    public void validarParaCheckout() {
+        if (items.isEmpty()) {
+            throw new OperacionNoPermitidaException(CodigoError.CARRITO_VACIO,
+                    "No se puede confirmar la compra de un carrito vacío");
+        }
     }
 
     public Dinero total() {

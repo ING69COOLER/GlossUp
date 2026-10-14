@@ -1,7 +1,10 @@
 package com.glossup.catalogo.domain.model;
 
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 import com.glossup.shared.domain.Dinero;
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.OperacionNoPermitidaException;
+import com.glossup.shared.domain.StockInsuficienteException;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -64,7 +67,7 @@ public class Producto {
         boolean yaEsta = composicion.stream()
                 .anyMatch(c -> c.ingrediente().getInci().equals(item.ingrediente().getInci()));
         if (yaEsta) {
-            throw new ReglaNegocioException(
+            throw new OperacionNoPermitidaException(CodigoError.INGREDIENTE_DUPLICADO,
                     "El ingrediente ya está en la ficha: " + item.ingrediente().getInci());
         }
         composicion.add(item);
@@ -79,7 +82,7 @@ public class Producto {
     /** Publica el producto. Regla: no se puede publicar sin ficha INCI. */
     public void publicar() {
         if (composicion.isEmpty()) {
-            throw new ReglaNegocioException(
+            throw new OperacionNoPermitidaException(CodigoError.PRODUCTO_SIN_INCI,
                     "No se puede publicar un producto sin ficha de ingredientes (INCI)");
         }
         this.activo = true;
@@ -93,18 +96,19 @@ public class Producto {
 
     public void reducirStock(int cantidad) {
         if (cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad a reducir debe ser positiva");
+            throw new DatoInvalidoException(CodigoError.CANTIDAD_INVALIDA,
+                    "La cantidad a reducir debe ser positiva");
         }
         if (cantidad > stock) {
-            throw new ReglaNegocioException(
-                    "Stock insuficiente para '" + nombre + "' (disponible: " + stock + ")");
+            throw new StockInsuficienteException(nombre, stock, cantidad);
         }
         this.stock -= cantidad;
     }
 
     public void reponerStock(int cantidad) {
         if (cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad a reponer debe ser positiva");
+            throw new DatoInvalidoException(CodigoError.CANTIDAD_INVALIDA,
+                    "La cantidad a reponer debe ser positiva");
         }
         this.stock += cantidad;
     }
@@ -129,14 +133,15 @@ public class Producto {
 
     private static String validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
-            throw new ReglaNegocioException("El nombre del producto es obligatorio");
+            throw new DatoInvalidoException(CodigoError.NOMBRE_INVALIDO,
+                    "El nombre del producto es obligatorio");
         }
         return nombre.trim();
     }
 
     private static int validarStock(int stock) {
         if (stock < 0) {
-            throw new ReglaNegocioException("El stock no puede ser negativo");
+            throw new DatoInvalidoException(CodigoError.STOCK_NEGATIVO, "El stock no puede ser negativo");
         }
         return stock;
     }

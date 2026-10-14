@@ -1,6 +1,8 @@
 package com.glossup.usuarios.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
+import com.glossup.shared.domain.OperacionNoPermitidaException;
 
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
@@ -55,7 +57,8 @@ public class Usuario {
 
     public void quitarRol(Rol rol) {
         if (roles.size() == 1 && roles.contains(rol)) {
-            throw new ReglaNegocioException("El usuario debe conservar al menos un rol");
+            throw new OperacionNoPermitidaException(CodigoError.USUARIO_SIN_ROLES,
+                    "El usuario debe conservar al menos un rol");
         }
         roles.remove(rol);
     }
@@ -84,14 +87,15 @@ public class Usuario {
 
     private static String validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
-            throw new ReglaNegocioException("El nombre no puede estar vacío");
+            throw new DatoInvalidoException(CodigoError.NOMBRE_INVALIDO, "El nombre no puede estar vacío");
         }
         return nombre.trim();
     }
 
     private static String validarHash(String hash) {
         if (hash == null || hash.isBlank()) {
-            throw new ReglaNegocioException("El hash de la contraseña es obligatorio");
+            throw new DatoInvalidoException(CodigoError.PASSWORD_HASH_REQUERIDO,
+                    "El hash de la contraseña es obligatorio");
         }
         return hash;
     }

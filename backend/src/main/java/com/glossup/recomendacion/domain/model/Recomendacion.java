@@ -1,6 +1,7 @@
 package com.glossup.recomendacion.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 import java.util.Objects;
 
@@ -13,10 +14,12 @@ public record Recomendacion(Long productoId, String razon, double score) {
     public Recomendacion {
         Objects.requireNonNull(productoId, "productoId requerido");
         if (razon == null || razon.isBlank()) {
-            throw new ReglaNegocioException("La recomendación debe incluir una razón");
+            throw new DatoInvalidoException(CodigoError.RECOMENDACION_SIN_RAZON,
+                    "La recomendación debe incluir una razón");
         }
         if (score < 0.0 || score > 1.0) {
-            throw new ReglaNegocioException("El score debe estar entre 0.0 y 1.0");
+            throw new DatoInvalidoException(CodigoError.SCORE_FUERA_DE_RANGO,
+                    "El score debe estar entre 0.0 y 1.0");
         }
     }
 }

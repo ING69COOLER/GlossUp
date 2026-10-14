@@ -1,7 +1,9 @@
 package com.glossup.recomendacion.domain.model;
 
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 import com.glossup.shared.domain.Dinero;
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.TransicionInvalidaException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -31,7 +33,8 @@ public class Pedido {
         this.id = id;
         this.usuarioId = Objects.requireNonNull(usuarioId, "usuarioId requerido");
         if (items == null || items.isEmpty()) {
-            throw new ReglaNegocioException("Un pedido debe tener al menos un producto");
+            throw new DatoInvalidoException(CodigoError.PEDIDO_SIN_ITEMS,
+                    "Un pedido debe tener al menos un producto");
         }
         this.items = List.copyOf(items);
         this.estado = estado != null ? estado : EstadoPedido.CREADO;
@@ -54,7 +57,7 @@ public class Pedido {
 
     private void transicionarA(EstadoPedido destino) {
         if (!estado.puedeTransicionarA(destino)) {
-            throw new ReglaNegocioException(
+            throw new TransicionInvalidaException(
                     "Transición de estado inválida: " + estado + " -> " + destino);
         }
         this.estado = destino;

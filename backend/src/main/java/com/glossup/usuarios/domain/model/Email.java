@@ -1,6 +1,7 @@
 package com.glossup.usuarios.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 import java.util.regex.Pattern;
 
@@ -17,11 +18,12 @@ public record Email(String valor) {
 
     public Email {
         if (valor == null || valor.isBlank()) {
-            throw new ReglaNegocioException("El correo no puede estar vacío");
+            throw new DatoInvalidoException(CodigoError.EMAIL_INVALIDO, "El correo no puede estar vacío");
         }
         valor = valor.trim().toLowerCase();
         if (!PATRON.matcher(valor).matches()) {
-            throw new ReglaNegocioException("El correo no tiene un formato válido: " + valor);
+            throw new DatoInvalidoException(CodigoError.EMAIL_INVALIDO,
+                    "El correo no tiene un formato válido: " + valor);
         }
     }
 

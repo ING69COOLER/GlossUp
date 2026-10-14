@@ -1,6 +1,7 @@
 package com.glossup.perfil.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
@@ -106,7 +107,8 @@ public class PerfilDermatologico {
 
     private static String normalizarObligatorio(String s, String campo) {
         if (s == null || s.isBlank()) {
-            throw new ReglaNegocioException("La " + campo + " no puede estar vacía");
+            throw new DatoInvalidoException(CodigoError.DATO_REQUERIDO,
+                    "La " + campo + " no puede estar vacía");
         }
         return s.trim().toLowerCase();
     }

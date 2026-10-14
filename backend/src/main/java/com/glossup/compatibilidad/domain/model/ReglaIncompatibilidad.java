@@ -1,6 +1,7 @@
 package com.glossup.compatibilidad.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 import java.util.Objects;
 
@@ -23,7 +24,8 @@ public class ReglaIncompatibilidad {
         this.ingredienteA = normalizar(ingredienteA, "ingredienteA");
         this.ingredienteB = normalizar(ingredienteB, "ingredienteB");
         if (this.ingredienteA.equals(this.ingredienteB)) {
-            throw new ReglaNegocioException("Una incompatibilidad requiere dos ingredientes distintos");
+            throw new DatoInvalidoException(CodigoError.REGLA_INVALIDA,
+                    "Una incompatibilidad requiere dos ingredientes distintos");
         }
         this.id = id;
         this.severidad = Objects.requireNonNull(severidad, "severidad requerida");
@@ -40,7 +42,8 @@ public class ReglaIncompatibilidad {
 
     private static String normalizar(String s, String campo) {
         if (s == null || s.isBlank()) {
-            throw new ReglaNegocioException("El campo " + campo + " es obligatorio");
+            throw new DatoInvalidoException(CodigoError.DATO_REQUERIDO,
+                    "El campo " + campo + " es obligatorio");
         }
         return s.trim().toLowerCase();
     }

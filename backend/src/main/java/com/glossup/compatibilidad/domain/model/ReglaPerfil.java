@@ -1,6 +1,7 @@
 package com.glossup.compatibilidad.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 import java.util.Objects;
 
@@ -32,7 +33,8 @@ public class ReglaPerfil {
 
     private static String normalizar(String s, String campo) {
         if (s == null || s.isBlank()) {
-            throw new ReglaNegocioException("El campo " + campo + " es obligatorio");
+            throw new DatoInvalidoException(CodigoError.DATO_REQUERIDO,
+                    "El campo " + campo + " es obligatorio");
         }
         return s.trim().toLowerCase();
     }

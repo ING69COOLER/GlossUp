@@ -1,6 +1,7 @@
 package com.glossup.catalogo.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 /**
  * Objeto de valor: nombre de ingrediente según la nomenclatura INCI.
@@ -11,7 +12,7 @@ public record Inci(String nombre) {
 
     public Inci {
         if (nombre == null || nombre.isBlank()) {
-            throw new ReglaNegocioException("El nombre INCI no puede estar vacío");
+            throw new DatoInvalidoException(CodigoError.DATO_REQUERIDO, "El nombre INCI no puede estar vacío");
         }
         nombre = nombre.trim().toLowerCase();
     }

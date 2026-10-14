@@ -10,13 +10,15 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Servicio transversal de emision y validacion de JSON Web Tokens (RNF-11).
  *
- * <p>El secreto y la expiracion se inyectan desde la configuracion (application.yml / variables
- * de entorno), de modo que ningun valor sensible queda escrito en el codigo.</p>
+ * <p>
+ * El secreto y la expiracion se inyectan desde la configuracion
+ * (application.yml / variables
+ * de entorno), de modo que ningun valor sensible queda escrito en el codigo.
+ * </p>
  */
 @Service
 public class JwtService {
@@ -31,7 +33,10 @@ public class JwtService {
         this.expirationMillis = expirationMillis;
     }
 
-    /** Genera un token firmado para el usuario indicado, incluyendo sus roles como claim. */
+    /**
+     * Genera un token firmado para el usuario indicado, incluyendo sus roles como
+     * claim.
+     */
     public String generarToken(String subject, List<String> roles) {
         Date ahora = new Date();
         Date expira = new Date(ahora.getTime() + expirationMillis);

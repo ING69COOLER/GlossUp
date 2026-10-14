@@ -1,6 +1,7 @@
 package com.glossup.perfil.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 /**
  * Objeto de valor para el pH de la piel.
@@ -12,7 +13,8 @@ public record Ph(double valor) {
 
     public Ph {
         if (valor < 0 || valor > 14) {
-            throw new ReglaNegocioException("El pH debe estar entre 0 y 14 (recibido: " + valor + ")");
+            throw new DatoInvalidoException(CodigoError.PH_FUERA_DE_RANGO,
+                    "El pH debe estar entre 0 y 14 (recibido: " + valor + ")");
         }
     }
 

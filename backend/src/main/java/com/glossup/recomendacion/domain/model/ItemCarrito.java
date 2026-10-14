@@ -1,7 +1,8 @@
 package com.glossup.recomendacion.domain.model;
 
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 import com.glossup.shared.domain.Dinero;
-import com.glossup.shared.domain.ReglaNegocioException;
 
 import java.util.Objects;
 
@@ -34,7 +35,8 @@ public class ItemCarrito {
 
     private static int validarCantidad(int cantidad) {
         if (cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad debe ser mayor que cero");
+            throw new DatoInvalidoException(CodigoError.CANTIDAD_INVALIDA,
+                    "La cantidad debe ser mayor que cero");
         }
         return cantidad;
     }

@@ -2,7 +2,6 @@ package com.glossup.shared.domain;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Objects;
 
 /**
  * Objeto de valor monetario compartido por los módulos. Usa BigDecimal con 2 decimales para
@@ -11,9 +10,11 @@ import java.util.Objects;
 public record Dinero(BigDecimal monto) {
 
     public Dinero {
-        Objects.requireNonNull(monto, "monto requerido");
+        if (monto == null) {
+            throw DatoInvalidoException.requerido("monto");
+        }
         if (monto.signum() < 0) {
-            throw new ReglaNegocioException("El monto no puede ser negativo");
+            throw new DatoInvalidoException(CodigoError.MONTO_NEGATIVO, "El monto no puede ser negativo");
         }
         monto = monto.setScale(2, RoundingMode.HALF_UP);
     }
@@ -32,7 +33,8 @@ public record Dinero(BigDecimal monto) {
 
     public Dinero por(int cantidad) {
         if (cantidad < 0) {
-            throw new ReglaNegocioException("La cantidad no puede ser negativa");
+            throw new DatoInvalidoException(CodigoError.CANTIDAD_INVALIDA,
+                    "La cantidad no puede ser negativa");
         }
         return new Dinero(this.monto.multiply(BigDecimal.valueOf(cantidad)));
     }

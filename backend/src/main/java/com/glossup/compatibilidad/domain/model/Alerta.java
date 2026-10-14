@@ -1,6 +1,7 @@
 package com.glossup.compatibilidad.domain.model;
 
-import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.domain.CodigoError;
+import com.glossup.shared.domain.DatoInvalidoException;
 
 /**
  * Alerta emitida por el motor de compatibilidad.
@@ -14,9 +15,13 @@ import com.glossup.shared.domain.ReglaNegocioException;
 public record Alerta(Severidad severidad, String mensaje, String causa) {
 
     public Alerta {
-        if (severidad == null) throw new ReglaNegocioException("La alerta requiere severidad");
-        if (mensaje == null || mensaje.isBlank()) throw new ReglaNegocioException("La alerta requiere un mensaje");
-        if (causa == null || causa.isBlank()) throw new ReglaNegocioException("La alerta debe explicar su causa (RNF-05)");
+        if (severidad == null)
+            throw new DatoInvalidoException(CodigoError.ALERTA_INCOMPLETA, "La alerta requiere severidad");
+        if (mensaje == null || mensaje.isBlank())
+            throw new DatoInvalidoException(CodigoError.ALERTA_INCOMPLETA, "La alerta requiere un mensaje");
+        if (causa == null || causa.isBlank())
+            throw new DatoInvalidoException(CodigoError.ALERTA_INCOMPLETA,
+                    "La alerta debe explicar su causa (RNF-05)");
     }
 
     public boolean esCritica() {
