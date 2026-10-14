@@ -88,4 +88,22 @@ class PerfilPersistenceAdapterIT {
     void existePorUsuarioId_es_falso_si_no_hay_perfil() {
         assertFalse(adapter.existePorUsuarioId(999_999L));
     }
+
+    @Test
+    void actualiza_las_colecciones_de_un_perfil_existente_HU2() {
+        Long usuarioId = insertarUsuario();
+        PerfilDermatologico perfil = PerfilDermatologico.crear(usuarioId, new Ph(5.0), TipoPiel.SECA, "liso");
+        perfil.agregarAlergia("parfum");
+        PerfilDermatologico guardado = adapter.guardar(perfil);
+
+        // HU2: muta y vuelve a guardar (merge + reemplazo de la tabla de colección).
+        guardado.quitarAlergia("parfum");
+        guardado.agregarAlergia("alcohol denat");
+        guardado.agregarAfeccion("rosácea");
+        adapter.guardar(guardado);
+
+        PerfilDermatologico recargado = adapter.buscarPorUsuarioId(usuarioId).orElseThrow();
+        assertEquals(Set.of("alcohol denat"), recargado.getAlergias());
+        assertEquals(Set.of("rosácea"), recargado.getAfecciones());
+    }
 }

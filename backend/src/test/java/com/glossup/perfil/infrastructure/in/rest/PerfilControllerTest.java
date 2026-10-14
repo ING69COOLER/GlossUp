@@ -9,6 +9,7 @@ import com.glossup.perfil.domain.port.in.GestionarPerfilDermatologicoUseCase;
 import com.glossup.shared.domain.CodigoError;
 import com.glossup.shared.domain.OperacionNoPermitidaException;
 import com.glossup.shared.exception.GlobalExceptionHandler;
+import com.glossup.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,9 +22,12 @@ import java.util.List;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -110,5 +114,59 @@ class PerfilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.usuarioId").value(7))
                 .andExpect(jsonPath("$.alergias[0]").value("parfum"));
+    }
+
+    // ---- HU2 ----
+
+    @Test
+    void agregar_alergia_usa_el_valor_del_cuerpo_y_el_usuario_del_token() throws Exception {
+        when(useCase.agregarAlergia(eq(7L), eq("Parfum"))).thenReturn(perfilDe(7L));
+
+        mockMvc.perform(post("/api/perfil/me/alergias").principal(usuario7)
+                        .contentType("application/json").content("{\"valor\":\"Parfum\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alergias[0]").value("parfum"));
+
+        verify(useCase).agregarAlergia(7L, "Parfum");
+    }
+
+    @Test
+    void quitar_alergia_envia_el_valor_en_el_cuerpo_no_en_la_url() throws Exception {
+        when(useCase.quitarAlergia(eq(7L), eq("parfum"))).thenReturn(perfilDe(7L));
+
+        mockMvc.perform(delete("/api/perfil/me/alergias").principal(usuario7)
+                        .contentType("application/json").content("{\"valor\":\"parfum\"}"))
+                .andExpect(status().isOk());
+
+        verify(useCase).quitarAlergia(7L, "parfum");
+    }
+
+    @Test
+    void valor_en_blanco_devuelve_400_por_validacion() throws Exception {
+        mockMvc.perform(post("/api/perfil/me/afecciones").principal(usuario7)
+                        .contentType("application/json").content("{\"valor\":\"  \"}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(useCase);
+    }
+
+    @Test
+    void actualizar_biotipo_devuelve_200() throws Exception {
+        when(useCase.actualizarBiotipo(any())).thenReturn(perfilDe(7L));
+
+        mockMvc.perform(put("/api/perfil/me/biotipo").principal(usuario7)
+                        .contentType("application/json")
+                        .content("{\"ph\":6.0,\"tipoPiel\":\"GRASA\",\"tipoCabello\":\"ondulado\"}"))
+                .andExpect(status().isOk());
+        verify(useCase).actualizarBiotipo(any());
+    }
+
+    @Test
+    void gestionar_sin_perfil_devuelve_404() throws Exception {
+        when(useCase.agregarAlergia(eq(7L), any()))
+                .thenThrow(new NotFoundException("sin perfil"));
+
+        mockMvc.perform(post("/api/perfil/me/alergias").principal(usuario7)
+                        .contentType("application/json").content("{\"valor\":\"parfum\"}"))
+                .andExpect(status().isNotFound());
     }
 }

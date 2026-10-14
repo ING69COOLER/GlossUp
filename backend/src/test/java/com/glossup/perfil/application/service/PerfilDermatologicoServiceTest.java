@@ -2,6 +2,7 @@ package com.glossup.perfil.application.service;
 
 import com.glossup.perfil.domain.model.PerfilDermatologico;
 import com.glossup.perfil.domain.model.TipoPiel;
+import com.glossup.perfil.domain.port.in.ActualizarBiotipoComando;
 import com.glossup.perfil.domain.port.in.CrearPerfilComando;
 import com.glossup.perfil.domain.port.out.PerfilDermatologicoRepository;
 import com.glossup.shared.domain.CodigoError;
@@ -101,5 +102,37 @@ class PerfilDermatologicoServiceTest {
         PerfilDermatologico encontrado = service.consultarPorUsuario(7L);
         assertEquals(TipoPiel.SECA, encontrado.getTipoPiel());
         assertTrue(encontrado.getActualizadoEn().isBefore(OffsetDateTime.now().plusSeconds(1)));
+    }
+
+    // ---- HU2 ----
+
+    @Test
+    void agrega_y_quita_alergias_sobre_el_perfil_existente() {
+        service.crear(new CrearPerfilComando(7L, null, null, null, Set.of(), Set.of()));
+
+        PerfilDermatologico conAlergia = service.agregarAlergia(7L, "Parfum");
+        assertTrue(conAlergia.esAlergicoA("parfum"));
+
+        PerfilDermatologico sinAlergia = service.quitarAlergia(7L, "parfum");
+        assertFalse(sinAlergia.esAlergicoA("parfum"));
+    }
+
+    @Test
+    void agrega_afeccion_y_actualiza_biotipo() {
+        service.crear(new CrearPerfilComando(7L, null, null, null, Set.of(), Set.of()));
+
+        assertTrue(service.agregarAfeccion(7L, "Rosácea").tieneAfeccion("rosácea"));
+
+        PerfilDermatologico actualizado =
+                service.actualizarBiotipo(new ActualizarBiotipoComando(7L, 6.0, TipoPiel.GRASA, "ondulado"));
+        assertEquals(TipoPiel.GRASA, actualizado.getTipoPiel());
+        assertEquals(6.0, actualizado.getPh().valor(), 0.001);
+    }
+
+    @Test
+    void gestionar_perfil_inexistente_lanza_NotFound() {
+        assertThrows(NotFoundException.class, () -> service.agregarAlergia(404L, "parfum"));
+        assertThrows(NotFoundException.class,
+                () -> service.actualizarBiotipo(new ActualizarBiotipoComando(404L, 5.0, null, null)));
     }
 }

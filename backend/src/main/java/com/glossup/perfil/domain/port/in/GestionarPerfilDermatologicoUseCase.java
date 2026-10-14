@@ -25,4 +25,27 @@ public interface GestionarPerfilDermatologicoUseCase {
      * @throws com.glossup.shared.exception.NotFoundException si el usuario no tiene perfil
      */
     PerfilDermatologico consultarPorUsuario(Long usuarioId);
+
+    // ---- HU2: gestión dinámica del perfil (sobre un perfil ya existente) ----
+
+    /**
+     * Agrega una alergia (nombre INCI) al perfil del usuario. Idempotente: agregar una ya presente
+     * no la duplica (el dominio normaliza).
+     *
+     * @throws com.glossup.shared.exception.NotFoundException si el usuario no tiene perfil
+     * @throws com.glossup.shared.domain.DatoInvalidoException si el valor viene vacío
+     */
+    PerfilDermatologico agregarAlergia(Long usuarioId, String alergia);
+
+    /** Quita una alergia del perfil (idempotente si no estaba). */
+    PerfilDermatologico quitarAlergia(Long usuarioId, String alergia);
+
+    /** Agrega una afección/condición dérmica al perfil. */
+    PerfilDermatologico agregarAfeccion(Long usuarioId, String afeccion);
+
+    /** Quita una afección del perfil (idempotente si no estaba). */
+    PerfilDermatologico quitarAfeccion(Long usuarioId, String afeccion);
+
+    /** Actualiza el biotipo (pH, tipo de piel, tipo de cabello) del perfil. */
+    PerfilDermatologico actualizarBiotipo(ActualizarBiotipoComando comando);
 }

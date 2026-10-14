@@ -2,6 +2,7 @@ package com.glossup.perfil.application.service;
 
 import com.glossup.perfil.domain.model.Ph;
 import com.glossup.perfil.domain.model.PerfilDermatologico;
+import com.glossup.perfil.domain.port.in.ActualizarBiotipoComando;
 import com.glossup.perfil.domain.port.in.CrearPerfilComando;
 import com.glossup.perfil.domain.port.in.GestionarPerfilDermatologicoUseCase;
 import com.glossup.perfil.domain.port.out.PerfilDermatologicoRepository;
@@ -60,6 +61,55 @@ public class PerfilDermatologicoService implements GestionarPerfilDermatologicoU
     @Override
     @Transactional(readOnly = true)
     public PerfilDermatologico consultarPorUsuario(Long usuarioId) {
+        return cargar(usuarioId);
+    }
+
+    // ---- HU2: gestión dinámica ----
+
+    @Override
+    @Transactional
+    public PerfilDermatologico agregarAlergia(Long usuarioId, String alergia) {
+        PerfilDermatologico perfil = cargar(usuarioId);
+        perfil.agregarAlergia(alergia);
+        return repositorio.guardar(perfil);
+    }
+
+    @Override
+    @Transactional
+    public PerfilDermatologico quitarAlergia(Long usuarioId, String alergia) {
+        PerfilDermatologico perfil = cargar(usuarioId);
+        perfil.quitarAlergia(alergia);
+        return repositorio.guardar(perfil);
+    }
+
+    @Override
+    @Transactional
+    public PerfilDermatologico agregarAfeccion(Long usuarioId, String afeccion) {
+        PerfilDermatologico perfil = cargar(usuarioId);
+        perfil.agregarAfeccion(afeccion);
+        return repositorio.guardar(perfil);
+    }
+
+    @Override
+    @Transactional
+    public PerfilDermatologico quitarAfeccion(Long usuarioId, String afeccion) {
+        PerfilDermatologico perfil = cargar(usuarioId);
+        perfil.quitarAfeccion(afeccion);
+        return repositorio.guardar(perfil);
+    }
+
+    @Override
+    @Transactional
+    public PerfilDermatologico actualizarBiotipo(ActualizarBiotipoComando comando) {
+        Objects.requireNonNull(comando, "comando requerido");
+        PerfilDermatologico perfil = cargar(comando.usuarioId());
+        Ph ph = comando.ph() == null ? null : new Ph(comando.ph());
+        perfil.actualizarBiotipo(ph, comando.tipoPiel(), comando.tipoCabello());
+        return repositorio.guardar(perfil);
+    }
+
+    /** Carga el perfil del usuario o falla con 404 si no existe. */
+    private PerfilDermatologico cargar(Long usuarioId) {
         return repositorio.buscarPorUsuarioId(usuarioId)
                 .orElseThrow(() -> new NotFoundException(
                         "El usuario " + usuarioId + " no tiene perfil dermatológico"));
