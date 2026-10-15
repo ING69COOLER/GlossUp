@@ -37,6 +37,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, null, ex.getMessage(), req, List.of());
     }
 
+    /** Fallo de autenticación (credenciales inválidas, cuenta inactiva). */
+    @ExceptionHandler(NoAutorizadoException.class)
+    public ResponseEntity<ApiError> handleNoAutorizado(NoAutorizadoException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, "NO_AUTORIZADO", ex.getMessage(), req, List.of());
+    }
+
     /** Conflictos con el estado del recurso (más específico que {@link ReglaNegocioException}). */
     @ExceptionHandler({StockInsuficienteException.class, TransicionInvalidaException.class})
     public ResponseEntity<ApiError> handleConflicto(ReglaNegocioException ex, HttpServletRequest req) {
