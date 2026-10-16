@@ -1,0 +1,483 @@
+openapi: 3.0.3
+info:
+  title: GlossUP API
+  description: |
+    API REST del backend GlossUP para autenticación y gestión del catálogo
+    de productos cosméticos e ingredientes INCI.
+  version: 0.0.1
+  contact:
+    name: Equipo GlossUP - Universidad del Quindío
+  license:
+    name: Uso académico
+
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+
+tags:
+  - name: Salud
+    description: Verificación del estado de la aplicación
+  - name: Autenticación
+    description: Inicio de sesión y emisión de tokens JWT
+  - name: Catálogo
+    description: Consulta y registro de productos cosméticos
+
+paths:
+  /ping:
+    get:
+      tags:
+        - Salud
+      summary: Verificar que la aplicación está activa
+      operationId: ping
+      security: []
+      responses:
+        '200':
+          description: Aplicación disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+              example:
+                service: glossup-backend
+                status: UP
+                timestamp: '2026-10-15T19:00:00-05:00'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión como vendedor
+      description: |
+        Valida el correo y la contraseña de un usuario activo con rol VENDEDOR
+        y devuelve un JWT para consumir los endpoints protegidos del catálogo.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: vendedor@glossup.com
+              password: mi-password
+      responses:
+        '200':
+          description: Credenciales válidas y token emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9...
+                usuarioId: 1
+                email: vendedor@glossup.com
+                roles:
+                  - VENDEDOR
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Credenciales inválidas, usuario inactivo o sin rol VENDEDOR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/catalogo/productos:
+    post:
+      tags:
+        - Catálogo
+      summary: Registrar un producto
+      description: |
+        Registra un producto con imágenes y ficha técnica INCI. El vendedor
+        se obtiene del subject del JWT y no se envía en el body.
+      operationId: registrarProducto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarProductoRequest'
+            example:
+              nombre: Serum Hidratante
+              marca: GlossLab
+              categoria: Cuidado facial
+              precio: 85000.00
+              stock: 50
+              ph: 5.5
+              registroInvima: NSOC12345-23CO
+              imagenes:
+                - https://ejemplo.com/serum.jpg
+              ingredientes:
+                - inci: Hyaluronic Acid
+                  descripcion: Ingrediente hidratante
+                  concentracion: 2.0
+      responses:
+        '201':
+          description: Producto registrado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /api/catalogo/productos/{id}:
+    get:
+      tags:
+        - Catálogo
+      summary: Consultar un producto por ID
+      operationId: buscarProductoPorId
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Producto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductoResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/catalogo/productos/mis-productos:
+    get:
+      tags:
+        - Catálogo
+      summary: Listar productos del vendedor autenticado
+      description: Devuelve los productos asociados al vendedor identificado por el JWT.
+      operationId: listarMisProductos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de productos del vendedor
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token obtenido mediante POST /api/auth/login
+
+  parameters:
+    ProductId:
+      name: id
+      in: path
+      required: true
+      description: Identificador del producto
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 1
+
+  schemas:
+    PingResponse:
+      type: object
+      required:
+        - service
+        - status
+        - timestamp
+      properties:
+        service:
+          type: string
+          example: glossup-backend
+        status:
+          type: string
+          example: UP
+        timestamp:
+          type: string
+          format: date-time
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo electrónico del vendedor
+          example: vendedor@glossup.com
+        password:
+          type: string
+          format: password
+          minLength: 1
+          description: Contraseña del vendedor
+          example: mi-password
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - usuarioId
+        - email
+        - roles
+      properties:
+        token:
+          type: string
+          description: JWT firmado para autenticar las siguientes solicitudes
+        usuarioId:
+          type: integer
+          format: int64
+          example: 1
+        email:
+          type: string
+          format: email
+          example: vendedor@glossup.com
+        roles:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - CLIENTE
+              - VENDEDOR
+              - ADMIN
+          example:
+            - VENDEDOR
+
+    RegistrarProductoRequest:
+      type: object
+      required:
+        - nombre
+        - precio
+        - ingredientes
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          description: Nombre comercial del producto
+          example: Serum Hidratante
+        marca:
+          type: string
+          nullable: true
+          example: GlossLab
+        categoria:
+          type: string
+          nullable: true
+          example: Cuidado facial
+        precio:
+          type: number
+          format: double
+          minimum: 0
+          example: 85000.00
+        stock:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 50
+        ph:
+          type: number
+          format: double
+          nullable: true
+          example: 5.5
+        registroInvima:
+          type: string
+          nullable: true
+          example: NSOC12345-23CO
+        imagenes:
+          type: array
+          nullable: true
+          items:
+            type: string
+            minLength: 1
+            description: URL de una imagen del producto
+        ingredientes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/IngredienteRequest'
+
+    IngredienteRequest:
+      type: object
+      required:
+        - inci
+      properties:
+        inci:
+          type: string
+          minLength: 1
+          description: Nombre INCI del ingrediente
+          example: Hyaluronic Acid
+        descripcion:
+          type: string
+          nullable: true
+          example: Ingrediente hidratante
+        concentracion:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          nullable: true
+          example: 2.0
+
+    ProductoResponse:
+      type: object
+      required:
+        - id
+        - vendedorId
+        - nombre
+        - precio
+        - stock
+        - activo
+        - imagenes
+        - ingredientes
+        - creadoEn
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        vendedorId:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Serum Hidratante
+        marca:
+          type: string
+          nullable: true
+          example: GlossLab
+        categoria:
+          type: string
+          nullable: true
+          example: Cuidado facial
+        precio:
+          type: number
+          format: double
+          example: 85000.00
+        stock:
+          type: integer
+          example: 50
+        ph:
+          type: number
+          format: double
+          nullable: true
+          example: 5.5
+        registroInvima:
+          type: string
+          nullable: true
+          example: NSOC12345-23CO
+        activo:
+          type: boolean
+          example: true
+        imagenes:
+          type: array
+          items:
+            type: string
+            format: uri
+        ingredientes:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngredienteResponse'
+        creadoEn:
+          type: string
+          format: date-time
+
+    IngredienteResponse:
+      type: object
+      required:
+        - inci
+      properties:
+        id:
+          type: integer
+          format: int64
+          nullable: true
+          example: 1
+        inci:
+          type: string
+          example: Hyaluronic Acid
+        descripcion:
+          type: string
+          nullable: true
+          example: Ingrediente hidratante
+        concentracion:
+          type: number
+          format: double
+          nullable: true
+          example: 2.0
+
+    ApiError:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+        - detalles
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Error de validacion
+        path:
+          type: string
+          example: /api/catalogo/productos
+        detalles:
+          type: array
+          items:
+            type: string
+
+  responses:
+    BadRequest:
+      description: Solicitud inválida o error de validación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Token ausente, inválido o expirado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: El usuario autenticado no tiene permisos suficientes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    BusinessRuleError:
+      description: Regla de negocio incumplida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'

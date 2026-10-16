@@ -15,6 +15,7 @@ import java.util.Objects;
  * <ul>
  *   <li>Nombre obligatorio; precio y stock nunca negativos.</li>
  *   <li>RNF-04: para publicarse (activarse) el producto debe tener ficha INCI (≥ 1 ingrediente).</li>
+ *   <li>Al registrarse con su ficha INCI reglamentaria y lista de imágenes, inicia activo.</li>
  *   <li>El stock se reduce al vender y no puede quedar negativo (HU9 reserva de inventario).</li>
  * </ul>
  */
@@ -30,12 +31,15 @@ public class Producto {
     private Double ph;
     private String registroInvima;
     private boolean activo;
+    private final List<ImagenProducto> imagenes;
     private final List<ComposicionProducto> composicion;
     private final OffsetDateTime creadoEn;
 
+    /** Constructor de reconstrucción completo (ej. desde persistencia). */
     public Producto(Long id, Long vendedorId, String nombre, String marca, String categoria,
                     Dinero precio, int stock, Double ph, String registroInvima, boolean activo,
-                    List<ComposicionProducto> composicion, OffsetDateTime creadoEn) {
+                    List<ImagenProducto> imagenes, List<ComposicionProducto> composicion,
+                    OffsetDateTime creadoEn) {
         this.id = id;
         this.vendedorId = vendedorId;
         this.nombre = validarNombre(nombre);
@@ -45,16 +49,45 @@ public class Producto {
         this.stock = validarStock(stock);
         this.ph = ph;
         this.registroInvima = normalizarOpcional(registroInvima);
-        this.composicion = new ArrayList<>(composicion == null ? List.of() : composicion);
         this.activo = activo;
+        this.imagenes = new ArrayList<>(imagenes == null ? List.of() : imagenes);
+        this.composicion = new ArrayList<>();
+        if (composicion != null) {
+            for (ComposicionProducto item : composicion) {
+                agregarIngrediente(item);
+            }
+        }
         this.creadoEn = creadoEn != null ? creadoEn : OffsetDateTime.now();
     }
 
-    /** Fábrica para registrar un producto nuevo (HU3): inicia inactivo hasta tener ficha INCI. */
+    /** Constructor sobrecargado para retrocompatibilidad sin imágenes explícitas. */
+    public Producto(Long id, Long vendedorId, String nombre, String marca, String categoria,
+                    Dinero precio, int stock, Double ph, String registroInvima, boolean activo,
+                    List<ComposicionProducto> composicion, OffsetDateTime creadoEn) {
+        this(id, vendedorId, nombre, marca, categoria, precio, stock, ph, registroInvima, activo,
+                List.of(), composicion, creadoEn);
+    }
+
+    /**
+     * Fábrica para registrar un producto nuevo de forma atómica (HU3):
+     * Requiere obligatoriamente ficha INCI con al menos un ingrediente.
+     * Nace activo al cumplir RNF-04.
+     */
+    public static Producto registrar(Long vendedorId, String nombre, String marca, String categoria,
+                                     Dinero precio, int stock, Double ph, String registroInvima,
+                                     List<ImagenProducto> imagenes, List<ComposicionProducto> composicion) {
+        if (composicion == null || composicion.isEmpty()) {
+            throw new ReglaNegocioException("La ficha técnica debe contener al menos un ingrediente (INCI)");
+        }
+        return new Producto(null, vendedorId, nombre, marca, categoria, precio, stock, ph,
+                registroInvima, true, imagenes, composicion, OffsetDateTime.now());
+    }
+
+    /** Fábrica inicial para registrar producto preliminar (inactivo sin ficha). */
     public static Producto registrar(Long vendedorId, String nombre, String marca, String categoria,
                                      Dinero precio, int stock, Double ph, String registroInvima) {
         return new Producto(null, vendedorId, nombre, marca, categoria, precio, stock, ph,
-                registroInvima, false, new ArrayList<>(), OffsetDateTime.now());
+                registroInvima, false, new ArrayList<>(), new ArrayList<>(), OffsetDateTime.now());
     }
 
     // ---- Ficha INCI ----
@@ -72,6 +105,13 @@ public class Producto {
 
     public boolean contieneIngrediente(Inci inci) {
         return composicion.stream().anyMatch(c -> c.ingrediente().getInci().equals(inci));
+    }
+
+    // ---- Imágenes ----
+
+    public void agregarImagen(ImagenProducto imagen) {
+        Objects.requireNonNull(imagen, "imagen requerida");
+        this.imagenes.add(imagen);
     }
 
     // ---- Publicación (RNF-04) ----
@@ -157,6 +197,8 @@ public class Producto {
     public Double getPh() { return ph; }
     public String getRegistroInvima() { return registroInvima; }
     public boolean isActivo() { return activo; }
+    public List<ImagenProducto> getImagenes() { return List.copyOf(imagenes); }
     public List<ComposicionProducto> getComposicion() { return List.copyOf(composicion); }
     public OffsetDateTime getCreadoEn() { return creadoEn; }
 }
+

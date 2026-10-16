@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Entidad de dominio Usuario (módulo de identidad).
@@ -14,13 +15,16 @@ import java.util.Set;
  * <ul>
  *   <li>Email y nombre válidos.</li>
  *   <li>El hash de la contraseña nunca va vacío (la contraseña en claro no vive en el dominio).</li>
- *   <li>Todo usuario tiene al menos un rol; por defecto {@link Rol#CLIENTE}.</li>
+ *   <li>Todo usuario tiene al menos un rol.</li>
  * </ul>
  */
 public class Usuario {
 
     private final Long id;            // null hasta que se persiste
-    private final Email email;
+    private static final Pattern EMAIL_PATTERN =
+            Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+    private final String email;
     private String nombre;
     private String passwordHash;
     private boolean activo;
@@ -28,10 +32,10 @@ public class Usuario {
     private final OffsetDateTime creadoEn;
 
     /** Constructor de reconstrucción (desde persistencia): todos los campos conocidos. */
-    public Usuario(Long id, Email email, String nombre, String passwordHash,
+    public Usuario(Long id, String email, String nombre, String passwordHash,
                    boolean activo, Set<Rol> roles, OffsetDateTime creadoEn) {
         this.id = id;
-        this.email = Objects.requireNonNull(email, "email requerido");
+        this.email = validarEmail(email);
         this.nombre = validarNombre(nombre);
         this.passwordHash = validarHash(passwordHash);
         this.activo = activo;
@@ -41,10 +45,10 @@ public class Usuario {
         this.creadoEn = creadoEn != null ? creadoEn : OffsetDateTime.now();
     }
 
-    /** Fábrica para registrar un usuario nuevo (sin id, activo, rol CLIENTE por defecto). */
-    public static Usuario registrar(Email email, String nombre, String passwordHash) {
-        return new Usuario(null, email, nombre, passwordHash, true,
-                EnumSet.of(Rol.CLIENTE), OffsetDateTime.now());
+    /** Fábrica para registrar un usuario nuevo con su rol inicial. */
+    public static Usuario registrar(String email, String hash, String nombre, Rol rol) {
+        return new Usuario(null, email, nombre, hash, true,
+                EnumSet.of(Objects.requireNonNull(rol, "rol requerido")), OffsetDateTime.now());
     }
 
     // ---- Reglas de negocio / comportamiento ----
@@ -89,6 +93,17 @@ public class Usuario {
         return nombre.trim();
     }
 
+    private static String validarEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ReglaNegocioException("El correo no puede estar vacío");
+        }
+        String normalizado = email.trim().toLowerCase();
+        if (!EMAIL_PATTERN.matcher(normalizado).matches()) {
+            throw new ReglaNegocioException("El correo no tiene un formato válido");
+        }
+        return normalizado;
+    }
+
     private static String validarHash(String hash) {
         if (hash == null || hash.isBlank()) {
             throw new ReglaNegocioException("El hash de la contraseña es obligatorio");
@@ -99,7 +114,7 @@ public class Usuario {
     // ---- Accesores ----
 
     public Long getId() { return id; }
-    public Email getEmail() { return email; }
+    public String getEmail() { return email; }
     public String getNombre() { return nombre; }
     public String getPasswordHash() { return passwordHash; }
     public boolean isActivo() { return activo; }
