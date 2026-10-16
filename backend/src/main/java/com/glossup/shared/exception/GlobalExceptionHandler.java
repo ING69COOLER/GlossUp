@@ -23,6 +23,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), req, List.of());
     }
 
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(CredencialesInvalidasException ex,
+                                                               HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), req, List.of());
+    }
+
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ApiError> handleReglaNegocio(ReglaNegocioException ex, HttpServletRequest req) {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req, List.of());
@@ -34,6 +40,11 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .toList();
         return build(HttpStatus.BAD_REQUEST, "Error de validacion", req, detalles);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex, HttpServletRequest req) {
+        return build(HttpStatus.FORBIDDEN, "Acceso denegado: permisos insuficientes", req, List.of());
     }
 
     @ExceptionHandler(Exception.class)

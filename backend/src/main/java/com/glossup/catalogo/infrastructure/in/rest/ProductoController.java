@@ -1,0 +1,99 @@
+package com.glossup.catalogo.infrastructure.in.rest;
+
+import com.glossup.catalogo.domain.model.Producto;
+import com.glossup.catalogo.domain.port.in.RegistrarProductoCommand;
+import com.glossup.catalogo.domain.port.in.RegistrarProductoUseCase;
+import com.glossup.catalogo.domain.port.out.ProductoRepositoryPort;
+import com.glossup.catalogo.infrastructure.in.rest.dto.ProductoResponse;
+import com.glossup.catalogo.infrastructure.in.rest.dto.RegistrarProductoRequest;
+import com.glossup.shared.exception.NotFoundException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/catalogo/productos")
+@Tag(name = "Catálogo", description = "Gestión de catálogo de productos cosméticos e ingredientes INCI")
+public class ProductoController {
+
+    private final RegistrarProductoUseCase registrarProductoUseCase;
+    private final ProductoRepositoryPort productoRepository;
+
+    public ProductoController(RegistrarProductoUseCase registrarProductoUseCase,
+                              ProductoRepositoryPort productoRepository) {
+        this.registrarProductoUseCase = registrarProductoUseCase;
+        this.productoRepository = productoRepository;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('VENDEDOR')")
+    @Operation(summary = "Registrar un nuevo producto en el catálogo (HU3)",
+               description = "Registra un producto con sus hipervínculos de imágenes y ficha INCI completa obligatoria. Requiere rol VENDEDOR.",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<ProductoResponse> registrar(
+            @Valid @RequestBody RegistrarProductoRequest request,
+            Authentication authentication) {
+
+        Long vendedorId = extraerVendedorId(authentication);
+
+        List<RegistrarProductoCommand.IngredienteComando> ingredientesCmd = request.ingredientes().stream()
+                .map(i -> new RegistrarProductoCommand.IngredienteComando(i.inci(), i.descripcion(), i.concentracion()))
+                .toList();
+
+        RegistrarProductoCommand command = new RegistrarProductoCommand(
+                vendedorId,
+                request.nombre(),
+                request.marca(),
+                request.categoria(),
+                request.precio(),
+                request.stock(),
+                request.ph(),
+                request.registroInvima(),
+                request.imagenes(),
+                ingredientesCmd
+        );
+
+        Producto producto = registrarProductoUseCase.registrar(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ProductoResponse.fromDomain(producto));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Consultar producto por ID")
+    public ResponseEntity<ProductoResponse> buscarPorId(@PathVariable Long id) {
+        return productoRepository.buscarPorId(id)
+                .map(ProductoResponse::fromDomain)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado con ID: " + id));
+    }
+
+    @GetMapping("/mis-productos")
+    @PreAuthorize("hasRole('VENDEDOR')")
+    @Operation(summary = "Listar productos del vendedor autenticado",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<List<ProductoResponse>> listarMisProductos(Authentication authentication) {
+        Long vendedorId = extraerVendedorId(authentication);
+        List<ProductoResponse> productos = productoRepository.buscarPorVendedor(vendedorId).stream()
+                .map(ProductoResponse::fromDomain)
+                .toList();
+        return ResponseEntity.ok(productos);
+    }
+
+    private Long extraerVendedorId(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return 1L;
+        }
+        try {
+            return Long.parseLong(authentication.getName());
+        } catch (NumberFormatException e) {
+            return (long) Math.abs(authentication.getName().hashCode());
+        }
+    }
+}

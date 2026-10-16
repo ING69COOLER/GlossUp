@@ -1,25 +1,69 @@
 # Módulo: catalogo
 
 Gestión del catálogo de productos y la ontología de ingredientes (lista INCI). Estructura e
-indexa la información química que consume el motor de compatibilidad.
+indexa la información química que consume el motor de compatibilidad dermatológica.
 
 **Proceso de negocio:** Gestión de catálogo y ontología de ingredientes.
 
 ## Historias de usuario (Jira)
-- **SCRUM-30 · HU3** — Registro Manual de Producto y Composición Química (5 pts) · Sprint 2
+- **SCRUM-30 · HU3** — Registro Manual de Producto, Ficha INCI e Imágenes (5 pts) · Sprint 2
 - **SCRUM-31 · HU4** — Modificación y Eliminación de Productos (3 pts) · Sprint 2
 - **SCRUM-40 · HU12** — Búsqueda Básica de Productos por Palabra Clave (3 pts) · Sprint 2
 - **SCRUM-32 · HU5** — Lectura OCR Asistida de Ingredientes desde Imagen (8 pts) · Sprint 3
 - **SCRUM-41 · HU13** — Filtrado Avanzado por Atributos Dermatológicos (5 pts) · Sprint 3
 
-**RNF relacionados:** RNF-04 (ficha INCI obligatoria), registro INVIMA.
+**RNF relacionados:**
+- **RNF-04**: Ficha INCI obligatoria (al menos un ingrediente al momento de registro).
+- **RNF-11 / RNF-14**: Autenticación JWT y autorización con rol `VENDEDOR`.
+- Registro INVIMA obligatorio para venta legal.
 
-## Estructura hexagonal
-- `domain/model` → `Producto`, `Ingrediente`
-- `domain/port/in` → `GestionarCatalogoUseCase`, `BuscarProductosUseCase`
-- `domain/port/out` → `ProductoRepositoryPort`, `IngredienteRepositoryPort`, (`OcrPort` para HU5)
-- `infrastructure/in/rest` → `CatalogoController` (+ `dto/`)
-- `infrastructure/out/persistence` → adaptadores JPA
+## Estructura hexagonal detallada
 
-## Tablas (ver V1__init.sql)
-`ingrediente`, `producto`, `producto_ingrediente`
+```
+catalogo/
+├── domain/
+│   ├── model/
+│   │   ├── Producto.java               # Raíz de agregado (valida ficha INCI >= 1 ingrediente)
+│   │   ├── ImagenProducto.java         # Value Object (hipervínculo de imagen)
+│   │   ├── ComposicionProducto.java    # Value Object (ingrediente + concentración %)
+│   │   ├── Ingrediente.java            # Entidad ontológica global
+│   │   └── Inci.java                   # Value Object (nombre INCI normalizado)
+│   └── port/
+│       ├── in/
+│       │   ├── RegistrarProductoUseCase.java
+│       │   └── RegistrarProductoCommand.java
+│       └── out/
+│           ├── ProductoRepositoryPort.java
+│           └── IngredienteRepositoryPort.java
+├── application/
+│   └── service/
+│       └── RegistrarProductoService.java
+└── infrastructure/
+    ├── in/
+    │   └── rest/
+    │       ├── ProductoController.java
+    │       └── dto/
+    │           ├── RegistrarProductoRequest.java
+    │           ├── IngredienteRequest.java
+    │           └── ProductoResponse.java
+    └── out/
+        └── persistence/
+            ├── entity/
+            │   ├── ProductoEntity.java
+            │   ├── ImagenProductoEntity.java
+            │   ├── IngredienteEntity.java
+            │   ├── ProductoIngredienteEntity.java
+            │   └── ProductoIngredienteId.java
+            ├── repository/
+            │   ├── ProductoJpaRepository.java
+            │   └── IngredienteJpaRepository.java
+            └── adapter/
+                ├── ProductoPersistenceAdapter.java
+                └── IngredientePersistenceAdapter.java
+```
+
+## Tablas de Base de Datos
+- `producto`: Tabla principal del catálogo.
+- `producto_imagen`: Lista de hipervínculos de imágenes (1 a N, migración `V2__producto_imagenes.sql`).
+- `ingrediente`: Ontología de ingredientes INCI únicos.
+- `producto_ingrediente`: Composición del producto y concentraciones porcentuales.

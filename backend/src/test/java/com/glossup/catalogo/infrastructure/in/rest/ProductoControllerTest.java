@@ -1,0 +1,217 @@
+package com.glossup.catalogo.infrastructure.in.rest;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.glossup.catalogo.domain.model.ComposicionProducto;
+import com.glossup.catalogo.domain.model.ImagenProducto;
+import com.glossup.catalogo.domain.model.Inci;
+import com.glossup.catalogo.domain.model.Ingrediente;
+import com.glossup.catalogo.domain.model.Producto;
+import com.glossup.catalogo.domain.port.in.RegistrarProductoCommand;
+import com.glossup.catalogo.domain.port.in.RegistrarProductoUseCase;
+import com.glossup.catalogo.domain.port.out.ProductoRepositoryPort;
+import com.glossup.catalogo.infrastructure.in.rest.dto.IngredienteRequest;
+import com.glossup.catalogo.infrastructure.in.rest.dto.RegistrarProductoRequest;
+import com.glossup.shared.config.SecurityConfig;
+import com.glossup.shared.domain.Dinero;
+import com.glossup.shared.domain.ReglaNegocioException;
+import com.glossup.shared.exception.GlobalExceptionHandler;
+import com.glossup.shared.security.JwtAuthenticationFilter;
+import com.glossup.shared.security.JwtService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(controllers = ProductoController.class)
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, GlobalExceptionHandler.class, ProductoControllerTest.TestSecurityConfig.class})
+class ProductoControllerTest {
+
+    @org.springframework.boot.test.context.TestConfiguration
+    static class TestSecurityConfig {
+        @org.springframework.context.annotation.Bean
+        public JwtService jwtService() {
+            return new JwtService("secreto-de-prueba-con-longitud-suficiente-32+", 3600000L);
+        }
+    }
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private RegistrarProductoUseCase registrarProductoUseCase;
+
+    @MockBean
+    private ProductoRepositoryPort productoRepository;
+
+    private RegistrarProductoRequest crearRequestValido() {
+        return new RegistrarProductoRequest(
+                "Serum Vitamina C",
+                "GlossLab",
+                "Serum Facial",
+                BigDecimal.valueOf(85000.0),
+                50,
+                3.5,
+                "INVIMA-2024",
+                List.of("https://cdn.glossup.co/img1.webp", "https://cdn.glossup.co/img2.webp"),
+                List.of(
+                        new IngredienteRequest("Ascorbic Acid", "Vitamina C", 15.0),
+                        new IngredienteRequest("Aqua", null, null)
+                )
+        );
+    }
+
+    @Test
+    void sinToken_retorna401Unauthorized() throws Exception {
+        RegistrarProductoRequest request = crearRequestValido();
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "1", roles = "CLIENTE")
+    void conRolCliente_retorna403Forbidden() throws Exception {
+        RegistrarProductoRequest request = crearRequestValido();
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "5", roles = "VENDEDOR")
+    void conRolVendedor_bodyCompleto_retorna201Created() throws Exception {
+        RegistrarProductoRequest request = crearRequestValido();
+
+        List<ImagenProducto> imagenes = List.of(
+                new ImagenProducto("https://cdn.glossup.co/img1.webp"),
+                new ImagenProducto("https://cdn.glossup.co/img2.webp")
+        );
+        List<ComposicionProducto> ingredientes = List.of(
+                new ComposicionProducto(new Ingrediente(1L, new Inci("Ascorbic Acid"), "Vitamina C"), 15.0),
+                new ComposicionProducto(new Ingrediente(2L, new Inci("Aqua"), null), null)
+        );
+
+        Producto productoGuardado = new Producto(
+                100L, 5L, "Serum Vitamina C", "GlossLab", "Serum Facial",
+                Dinero.de(85000.0), 50, 3.5, "INVIMA-2024", true,
+                imagenes, ingredientes, null
+        );
+
+        when(registrarProductoUseCase.registrar(any(RegistrarProductoCommand.class)))
+                .thenReturn(productoGuardado);
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(100))
+                .andExpect(jsonPath("$.vendedorId").value(5))
+                .andExpect(jsonPath("$.nombre").value("Serum Vitamina C"))
+                .andExpect(jsonPath("$.activo").value(true))
+                .andExpect(jsonPath("$.imagenes.length()").value(2))
+                .andExpect(jsonPath("$.ingredientes.length()").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "5", roles = "VENDEDOR")
+    void conRolVendedor_sinIngredientes_retorna400BadRequest() throws Exception {
+        RegistrarProductoRequest requestSinIngredientes = new RegistrarProductoRequest(
+                "Serum Vitamina C",
+                "GlossLab",
+                "Serum Facial",
+                BigDecimal.valueOf(85000.0),
+                50,
+                3.5,
+                "INVIMA-2024",
+                List.of("https://cdn.glossup.co/img1.webp"),
+                List.of() // Vacío intencionalmente
+        );
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestSinIngredientes)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Error de validacion"));
+    }
+
+    @Test
+    @WithMockUser(username = "5", roles = "VENDEDOR")
+    void conRolVendedor_nombreEnBlanco_retorna400BadRequest() throws Exception {
+        RegistrarProductoRequest requestInvalido = new RegistrarProductoRequest(
+                "", // Nombre inválido
+                "GlossLab",
+                "Serum Facial",
+                BigDecimal.valueOf(85000.0),
+                50,
+                3.5,
+                "INVIMA-2024",
+                List.of("https://cdn.glossup.co/img1.webp"),
+                List.of(new IngredienteRequest("Aqua", null, null))
+        );
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestInvalido)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @WithMockUser(username = "5", roles = "VENDEDOR")
+    void conRolVendedor_precioNegativo_retorna400BadRequest() throws Exception {
+        RegistrarProductoRequest requestInvalido = new RegistrarProductoRequest(
+                "Serum Vitamina C",
+                "GlossLab",
+                "Serum Facial",
+                BigDecimal.valueOf(-10.0), // Precio inválido
+                50,
+                3.5,
+                "INVIMA-2024",
+                List.of("https://cdn.glossup.co/img1.webp"),
+                List.of(new IngredienteRequest("Aqua", null, null))
+        );
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestInvalido)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @WithMockUser(username = "5", roles = "VENDEDOR")
+    void conRolVendedor_cuandoCasoDeUsoLanzaReglaNegocio_retorna422UnprocessableEntity() throws Exception {
+        RegistrarProductoRequest request = crearRequestValido();
+
+        when(registrarProductoUseCase.registrar(any(RegistrarProductoCommand.class)))
+                .thenThrow(new ReglaNegocioException("El ingrediente ya está en la ficha: ascorbic acid"));
+
+        mockMvc.perform(post("/api/catalogo/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.message").value("El ingrediente ya está en la ficha: ascorbic acid"));
+    }
+}
