@@ -23,7 +23,8 @@ spring:
     baseline-on-migrate: true
 
 server:
-  port: ${GLOSSUP_PORT:8080}
+  # Cloud Run / PaaS inyectan PORT; en local cae a 8080.
+  port: ${PORT:${GLOSSUP_PORT:8080}}
 
 management:
   endpoints:
