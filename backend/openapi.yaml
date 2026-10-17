@@ -150,6 +150,62 @@ paths:
                 $ref: '#/components/schemas/ProductoResponse'
         '404':
           $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Catálogo
+      summary: Modificar un producto existente (HU4)
+      description: |
+        Actualiza los datos generales, stock, hipervínculos de imágenes y ficha INCI
+        de un producto perteneciente al vendedor autenticado.
+      operationId: actualizarProducto
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarProductoRequest'
+      responses:
+        '200':
+          description: Producto modificado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    delete:
+      tags:
+        - Catálogo
+      summary: Eliminar lógicamente un producto (HU4)
+      description: |
+        Despublica (activo = false) un producto perteneciente al vendedor autenticado,
+        protegiendo el historial de pedidos.
+      operationId: eliminarProducto
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '204':
+          description: Producto eliminado lógicamente (despublicado)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/catalogo/productos/mis-productos:
     get:

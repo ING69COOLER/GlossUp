@@ -1,9 +1,12 @@
 package com.glossup.catalogo.infrastructure.in.rest;
 
 import com.glossup.catalogo.domain.model.Producto;
+import com.glossup.catalogo.domain.port.in.ActualizarProductoCommand;
+import com.glossup.catalogo.domain.port.in.GestionarProductoUseCase;
 import com.glossup.catalogo.domain.port.in.RegistrarProductoCommand;
 import com.glossup.catalogo.domain.port.in.RegistrarProductoUseCase;
 import com.glossup.catalogo.domain.port.out.ProductoRepositoryPort;
+import com.glossup.catalogo.infrastructure.in.rest.dto.ActualizarProductoRequest;
 import com.glossup.catalogo.infrastructure.in.rest.dto.ProductoResponse;
 import com.glossup.catalogo.infrastructure.in.rest.dto.RegistrarProductoRequest;
 import com.glossup.shared.exception.NotFoundException;
@@ -25,11 +28,14 @@ import java.util.List;
 public class ProductoController {
 
     private final RegistrarProductoUseCase registrarProductoUseCase;
+    private final GestionarProductoUseCase gestionarProductoUseCase;
     private final ProductoRepositoryPort productoRepository;
 
     public ProductoController(RegistrarProductoUseCase registrarProductoUseCase,
+                              GestionarProductoUseCase gestionarProductoUseCase,
                               ProductoRepositoryPort productoRepository) {
         this.registrarProductoUseCase = registrarProductoUseCase;
+        this.gestionarProductoUseCase = gestionarProductoUseCase;
         this.productoRepository = productoRepository;
     }
 
@@ -63,6 +69,54 @@ public class ProductoController {
 
         Producto producto = registrarProductoUseCase.registrar(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(ProductoResponse.fromDomain(producto));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('VENDEDOR')")
+    @Operation(summary = "Modificar un producto existente del catálogo (HU4)",
+               description = "Actualiza los datos generales, stock, imágenes y ficha INCI de un producto perteneciente al vendedor autenticado.",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<ProductoResponse> actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody ActualizarProductoRequest request,
+            Authentication authentication) {
+
+        Long vendedorId = extraerVendedorId(authentication);
+
+        List<RegistrarProductoCommand.IngredienteComando> ingredientesCmd = request.ingredientes().stream()
+                .map(i -> new RegistrarProductoCommand.IngredienteComando(i.inci(), i.descripcion(), i.concentracion()))
+                .toList();
+
+        ActualizarProductoCommand command = new ActualizarProductoCommand(
+                id,
+                vendedorId,
+                request.nombre(),
+                request.marca(),
+                request.categoria(),
+                request.precio(),
+                request.stock(),
+                request.ph(),
+                request.registroInvima(),
+                request.imagenes(),
+                ingredientesCmd
+        );
+
+        Producto actualizado = gestionarProductoUseCase.actualizar(command);
+        return ResponseEntity.ok(ProductoResponse.fromDomain(actualizado));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('VENDEDOR')")
+    @Operation(summary = "Eliminar lógicamente un producto del catálogo (HU4)",
+               description = "Despublica (activo = false) un producto perteneciente al vendedor autenticado, preservando la integridad de pedidos históricos.",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<Void> eliminar(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        Long vendedorId = extraerVendedorId(authentication);
+        gestionarProductoUseCase.eliminar(id, vendedorId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
