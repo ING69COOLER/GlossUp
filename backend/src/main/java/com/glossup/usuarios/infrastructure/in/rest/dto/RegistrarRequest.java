@@ -9,9 +9,8 @@ import jakarta.validation.constraints.Size;
 /**
  * Cuerpo para registrar un usuario.
  *
- * <p>{@code rol} es opcional (por defecto CLIENTE). En esta versión académica se permite elegirlo
- * para poder probar los tres paneles; en producción los roles elevados (VENDEDOR/ADMIN) los
- * provisionaría un administrador.</p>
+ * <p>{@code rol} es opcional (por defecto CLIENTE). Por auto-registro solo se admite CLIENTE o
+ * VENDEDOR; ADMIN se rechaza (422) y lo provisiona otro administrador.</p>
  */
 public record RegistrarRequest(
 

@@ -22,12 +22,13 @@ function AppShell() {
     navigate('/login', { replace: true })
   }
 
-  // El vendedor usa su propio layout con barra lateral (mockups); oculta la barra superior global.
-  const esVendedor = sesion?.panel === 'VENDEDOR'
+  // El vendedor usa su propio layout con barra lateral; el login/registro no llevan barra.
+  // Solo se muestra la barra superior a clientes y admins ya autenticados.
+  const mostrarTopbar = !!sesion && sesion.panel !== 'VENDEDOR'
 
   return (
     <>
-      {!esVendedor && (
+      {mostrarTopbar && (
       <header className="topbar">
         <Link to={sesion ? rutaDePanel(sesion.panel) : '/'} className="brand">GlossUP</Link>
         <nav>
@@ -51,7 +52,7 @@ function AppShell() {
       </header>
       )}
 
-      <main className={esVendedor ? 'full' : 'container'}>
+      <main className={sesion?.panel === 'VENDEDOR' ? 'full' : 'container'}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<Inicio />} />

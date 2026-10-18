@@ -55,10 +55,16 @@ public class AutenticacionService implements RegistrarUsuarioUseCase, Autenticar
                     "Ya existe un usuario con el correo " + email);
         }
 
+        Rol rol = comando.rolInicial() == null ? Rol.CLIENTE : comando.rolInicial();
+        // Seguridad: nadie se auto-registra como ADMIN; ese rol lo provisiona otro administrador.
+        if (rol == Rol.ADMIN) {
+            throw new OperacionNoPermitidaException(CodigoError.ROL_NO_AUTOREGISTRABLE,
+                    "No es posible registrarse como administrador");
+        }
+
         String hash = cifrador.cifrar(comando.password());
         Usuario usuario = Usuario.registrar(email, comando.nombre(), hash); // nace CLIENTE
 
-        Rol rol = comando.rolInicial() == null ? Rol.CLIENTE : comando.rolInicial();
         if (rol != Rol.CLIENTE) {
             usuario.asignarRol(rol);
             usuario.quitarRol(Rol.CLIENTE); // el usuario queda con un único rol (su panel)

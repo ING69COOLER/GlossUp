@@ -95,12 +95,19 @@ class AutenticacionServiceTest {
 
     @Test
     void login_correcto_devuelve_token_con_id_y_roles() {
-        service.registrar(new RegistrarUsuarioComando("a@mail.com", "Ana", "secret123", Rol.ADMIN));
+        service.registrar(new RegistrarUsuarioComando("a@mail.com", "Ana", "secret123", Rol.VENDEDOR));
 
         ResultadoAutenticacion r = service.autenticar(new CredencialesComando("a@mail.com", "secret123"));
 
         assertTrue(r.token().startsWith("token-" + r.usuario().getId()));
-        assertTrue(r.token().contains("ADMIN"));
+        assertTrue(r.token().contains("VENDEDOR"));
+    }
+
+    @Test
+    void no_permite_auto_registrarse_como_admin() {
+        OperacionNoPermitidaException ex = assertThrows(OperacionNoPermitidaException.class,
+                () -> service.registrar(new RegistrarUsuarioComando("hacker@mail.com", "Hacker", "secret123", Rol.ADMIN)));
+        assertEquals(CodigoError.ROL_NO_AUTOREGISTRABLE, ex.getCodigo());
     }
 
     @Test
