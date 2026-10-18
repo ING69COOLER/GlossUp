@@ -22,8 +22,12 @@ function AppShell() {
     navigate('/login', { replace: true })
   }
 
+  // El vendedor usa su propio layout con barra lateral (mockups); oculta la barra superior global.
+  const esVendedor = sesion?.panel === 'VENDEDOR'
+
   return (
     <>
+      {!esVendedor && (
       <header className="topbar">
         <Link to={sesion ? rutaDePanel(sesion.panel) : '/'} className="brand">GlossUP</Link>
         <nav>
@@ -45,8 +49,9 @@ function AppShell() {
           )}
         </nav>
       </header>
+      )}
 
-      <main className="container">
+      <main className={esVendedor ? 'full' : 'container'}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<Inicio />} />

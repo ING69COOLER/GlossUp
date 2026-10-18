@@ -32,13 +32,14 @@ public class Producto {
     private int stock;
     private Double ph;
     private String registroInvima;
+    private String imagenUrl;
     private boolean activo;
     private final List<ComposicionProducto> composicion;
     private final OffsetDateTime creadoEn;
 
     public Producto(Long id, Long vendedorId, String nombre, String marca, String categoria,
-                    Dinero precio, int stock, Double ph, String registroInvima, boolean activo,
-                    List<ComposicionProducto> composicion, OffsetDateTime creadoEn) {
+                    Dinero precio, int stock, Double ph, String registroInvima, String imagenUrl,
+                    boolean activo, List<ComposicionProducto> composicion, OffsetDateTime creadoEn) {
         this.id = id;
         this.vendedorId = vendedorId;
         this.nombre = validarNombre(nombre);
@@ -48,6 +49,7 @@ public class Producto {
         this.stock = validarStock(stock);
         this.ph = ph;
         this.registroInvima = normalizarOpcional(registroInvima);
+        this.imagenUrl = normalizarOpcional(imagenUrl);
         this.composicion = new ArrayList<>(composicion == null ? List.of() : composicion);
         this.activo = activo;
         this.creadoEn = creadoEn != null ? creadoEn : OffsetDateTime.now();
@@ -55,9 +57,9 @@ public class Producto {
 
     /** Fábrica para registrar un producto nuevo (HU3): inicia inactivo hasta tener ficha INCI. */
     public static Producto registrar(Long vendedorId, String nombre, String marca, String categoria,
-                                     Dinero precio, int stock, Double ph, String registroInvima) {
+                                     Dinero precio, int stock, Double ph, String registroInvima, String imagenUrl) {
         return new Producto(null, vendedorId, nombre, marca, categoria, precio, stock, ph,
-                registroInvima, false, new ArrayList<>(), OffsetDateTime.now());
+                registroInvima, imagenUrl, false, new ArrayList<>(), OffsetDateTime.now());
     }
 
     // ---- Ficha INCI ----
@@ -71,6 +73,11 @@ public class Producto {
                     "El ingrediente ya está en la ficha: " + item.ingrediente().getInci());
         }
         composicion.add(item);
+    }
+
+    /** Quita un ingrediente de la ficha por su nombre INCI (no falla si no estaba). */
+    public void quitarIngrediente(Inci inci) {
+        composicion.removeIf(c -> c.ingrediente().getInci().equals(inci));
     }
 
     public boolean contieneIngrediente(Inci inci) {
@@ -113,6 +120,11 @@ public class Producto {
         this.stock += cantidad;
     }
 
+    /** Fija el stock disponible a un valor absoluto (gestión de disponibilidad por el vendedor). */
+    public void fijarStock(int nuevoStock) {
+        this.stock = validarStock(nuevoStock);
+    }
+
     public boolean hayStock(int cantidad) {
         return stock >= cantidad;
     }
@@ -120,13 +132,14 @@ public class Producto {
     // ---- Edición (HU4) ----
 
     public void actualizarDatos(String nombre, String marca, String categoria,
-                                Dinero precio, Double ph, String registroInvima) {
+                                Dinero precio, Double ph, String registroInvima, String imagenUrl) {
         this.nombre = validarNombre(nombre);
         this.marca = normalizarOpcional(marca);
         this.categoria = normalizarOpcional(categoria);
         this.precio = Objects.requireNonNull(precio, "precio requerido");
         this.ph = ph;
         this.registroInvima = normalizarOpcional(registroInvima);
+        this.imagenUrl = normalizarOpcional(imagenUrl);
     }
 
     // ---- Validaciones ----
@@ -161,6 +174,7 @@ public class Producto {
     public int getStock() { return stock; }
     public Double getPh() { return ph; }
     public String getRegistroInvima() { return registroInvima; }
+    public String getImagenUrl() { return imagenUrl; }
     public boolean isActivo() { return activo; }
     public List<ComposicionProducto> getComposicion() { return List.copyOf(composicion); }
     public OffsetDateTime getCreadoEn() { return creadoEn; }

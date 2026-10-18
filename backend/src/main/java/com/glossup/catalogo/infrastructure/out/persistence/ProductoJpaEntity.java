@@ -1,22 +1,22 @@
 package com.glossup.catalogo.infrastructure.out.persistence;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-/**
- * Entidad JPA de la tabla {@code producto}.
- *
- * <p>shortcut: no mapea {@code producto_ingrediente} (la ficha INCI). Editar los datos comerciales
- * (HU4) no la toca, y al no mapearla el UPDATE no puede borrarla. Añadir la colección cuando se
- * implemente la HU de gestión de ficha de ingredientes.</p>
- */
+/** Entidad JPA de la tabla {@code producto} con su ficha INCI ({@code producto_ingrediente}). */
 @Entity
 @Table(name = "producto")
 public class ProductoJpaEntity {
@@ -49,11 +49,18 @@ public class ProductoJpaEntity {
     @Column(name = "registro_invima")
     private String registroInvima;
 
+    @Column(name = "imagen_url")
+    private String imagenUrl;
+
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
     @Column(name = "creado_en", nullable = false)
     private OffsetDateTime creadoEn;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "producto_ingrediente", joinColumns = @JoinColumn(name = "producto_id"))
+    private Set<ProductoIngredienteEmbeddable> ingredientes = new LinkedHashSet<>();
 
     protected ProductoJpaEntity() {
     }
@@ -85,9 +92,15 @@ public class ProductoJpaEntity {
     public String getRegistroInvima() { return registroInvima; }
     public void setRegistroInvima(String registroInvima) { this.registroInvima = registroInvima; }
 
+    public String getImagenUrl() { return imagenUrl; }
+    public void setImagenUrl(String imagenUrl) { this.imagenUrl = imagenUrl; }
+
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
 
     public OffsetDateTime getCreadoEn() { return creadoEn; }
     public void setCreadoEn(OffsetDateTime creadoEn) { this.creadoEn = creadoEn; }
+
+    public Set<ProductoIngredienteEmbeddable> getIngredientes() { return ingredientes; }
+    public void setIngredientes(Set<ProductoIngredienteEmbeddable> ingredientes) { this.ingredientes = ingredientes; }
 }

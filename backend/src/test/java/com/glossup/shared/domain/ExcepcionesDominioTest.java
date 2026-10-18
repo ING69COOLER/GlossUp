@@ -26,7 +26,7 @@ class ExcepcionesDominioTest {
 
     @Test
     void publicar_sin_inci_lanza_OperacionNoPermitida_con_codigo() {
-        Producto p = Producto.registrar(1L, "Serum", "GlossLab", "serum", Dinero.de(50000), 10, 5.0, null);
+        Producto p = Producto.registrar(1L, "Serum", "GlossLab", "serum", Dinero.de(50000), 10, 5.0, null, null);
         OperacionNoPermitidaException ex =
                 assertThrows(OperacionNoPermitidaException.class, p::publicar);
         assertEquals(CodigoError.PRODUCTO_SIN_INCI, ex.getCodigo());
@@ -34,7 +34,7 @@ class ExcepcionesDominioTest {
 
     @Test
     void stock_insuficiente_lanza_excepcion_con_datos_estructurados() {
-        Producto p = Producto.registrar(1L, "Serum", "GlossLab", "serum", Dinero.de(50000), 3, 5.0, null);
+        Producto p = Producto.registrar(1L, "Serum", "GlossLab", "serum", Dinero.de(50000), 3, 5.0, null, null);
         StockInsuficienteException ex =
                 assertThrows(StockInsuficienteException.class, () -> p.reducirStock(10));
         assertEquals(CodigoError.STOCK_INSUFICIENTE, ex.getCodigo());
@@ -54,7 +54,7 @@ class ExcepcionesDominioTest {
     void todas_las_excepciones_de_dominio_comparten_la_raiz() {
         // Permite que la capa web las trate de forma uniforme (un solo @ExceptionHandler base).
         assertThrows(ReglaNegocioException.class,
-                () -> new Producto(1L, 1L, "Serum", null, null, Dinero.de(1000), -5, null, null,
+                () -> new Producto(1L, 1L, "Serum", null, null, Dinero.de(1000), -5, null, null, null,
                         false, List.of(ComposicionProducto.de(Ingrediente.nuevo(new Inci("Aqua"), null))), null));
     }
 }

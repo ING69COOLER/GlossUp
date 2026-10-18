@@ -25,9 +25,12 @@ public record EditarProductoRequest(
         @DecimalMax(value = "14.0", message = "el pH máximo es 14")
         Double ph,
 
-        @Size(max = 100) String registroInvima) {
+        @Size(max = 100) String registroInvima,
+
+        @Size(max = 500) String imagenUrl) {
 
     public EditarProductoComando aComando(Long productoId, Long vendedorId) {
-        return new EditarProductoComando(productoId, vendedorId, nombre, marca, categoria, precio, ph, registroInvima);
+        return new EditarProductoComando(productoId, vendedorId, nombre, marca, categoria, precio, ph,
+                registroInvima, imagenUrl);
     }
 }

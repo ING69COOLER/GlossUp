@@ -10,7 +10,7 @@ class ProductoTest {
 
     private Producto productoBase() {
         return Producto.registrar(1L, "Serum Vitamina C", "GlossLab", "serum",
-                Dinero.de(50000), 10, 5.0, "INVIMA-123");
+                Dinero.de(50000), 10, 5.0, "INVIMA-123", null);
     }
 
     @Test

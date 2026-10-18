@@ -3,6 +3,7 @@ package com.glossup.catalogo.infrastructure.in.rest;
 import com.glossup.catalogo.domain.model.Producto;
 import com.glossup.catalogo.domain.port.in.EditarProductoComando;
 import com.glossup.catalogo.domain.port.in.EditarProductoUseCase;
+import com.glossup.catalogo.domain.port.in.GestionCatalogoUseCase;
 import com.glossup.shared.domain.Dinero;
 import com.glossup.shared.exception.GlobalExceptionHandler;
 import com.glossup.shared.exception.NotFoundException;
@@ -31,7 +32,7 @@ class ProductoControllerTest {
     @BeforeEach
     void setUp() {
         useCase = mock(EditarProductoUseCase.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new ProductoController(useCase))
+        mockMvc = MockMvcBuilders.standaloneSetup(new ProductoController(useCase, mock(GestionCatalogoUseCase.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -43,7 +44,7 @@ class ProductoControllerTest {
     void editar_devuelve_200_y_toma_el_vendedor_del_token() throws Exception {
         when(useCase.editar(any(EditarProductoComando.class))).thenReturn(
                 new Producto(100L, 7L, "Serum Pro", "GlossLab", "serum", Dinero.de(60000), 10, 5.5, "INVIMA-2",
-                        true, List.of(), OffsetDateTime.now()));
+                        null, true, List.of(), OffsetDateTime.now()));
 
         mockMvc.perform(put("/api/catalogo/productos/100").principal(vendedor7)
                         .contentType("application/json").content(BODY))

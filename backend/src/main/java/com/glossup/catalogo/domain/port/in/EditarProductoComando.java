@@ -12,5 +12,6 @@ public record EditarProductoComando(
         String categoria,
         double precio,
         Double ph,
-        String registroInvima) {
+        String registroInvima,
+        String imagenUrl) {
 }
